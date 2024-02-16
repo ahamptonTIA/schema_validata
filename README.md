@@ -27,7 +27,7 @@ A template [data_dictionary_template.xlsx](../../blob/main/data_dictionary_templ
     ```
 ## General Workflow
 ### 1. Data Dictionary Creation:
-  - Use *dataset_schema_to_xlsx* to generate a data dictionary (.xlsx) defining a dataset's actual schema. The provided data_dictionary_template.xlsx can also be used as a starting point.
+  - Use *dataset_schema_to_xlsx* to generate a data dictionary (.xlsx) defining a dataset's actual schema. The provided [data_dictionary_template.xlsx](../../blob/main/data_dictionary_template.xlsx) can also be used as a starting point.
 Define custom regex patterns, ranges, lengths, nulls, and unique columns within the data dictionary.
 ### 2. Schema Mapping:
   - Create a *schema_mapping* dictionary manually, associating dataset names/tabs with corresponding sheets.tabs in the data dictionary.
