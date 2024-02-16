@@ -61,7 +61,7 @@ Define custom regex patterns, ranges, lengths, nulls, and unique columns within 
     # Generate a data dictionary (xlsx) given a CSV, XLSX, or XLS containing actual data
     data_dict_path = sv.dataset_schema_to_xlsx(file_path=file_path, 
                                               out_dir='C:\dataDictionary', 
-                                              out_name='data_dict_v0.1'
+                                              out_name='data_dictionary_template.xlsx'
                                               )
     ```
 ### 2. validate_dataset:
@@ -101,7 +101,7 @@ Define custom regex patterns, ranges, lengths, nulls, and unique columns within 
     import schema_validata as sv
     
     # The path to the dataset file (CSV or Excel) to be validated.
-    data_dict_path = 'C:\dataDictionary\data_dict_v0.1.xlsx'
+    data_dict_path = 'C:\dataDictionary\data_dictionary_template.xlsx'
     
     #The path to the data dictionary file (CSV or Excel) containing schema and regex patterns.
     input_dataset = 'C:\data\show_times.xlsx'
