@@ -1710,12 +1710,18 @@ def validate_dataset(dataset_path, data_dict_path, schema_mapping,
     schema_mapping : list
         A list of mappings between dataset names and corresponding data 
         dictionary sections.
+    list_errors : boolean
+        Option to list all row.value level errors in a sheet/tab named
+        in reference to the original dataset. 
     out_dir (str, optional): 
         Path to the output directory for the JSON file. 
             Defaults to None.
     out_name (str, optional): 
         Desired name for the output JSON file (without extension). 
             Defaults to None.
+    ignore_errors : list, optional
+        A list of error types to exclude from the analysis. 
+        Default is ['allow_null'].               
     Returns
     -------
     str
