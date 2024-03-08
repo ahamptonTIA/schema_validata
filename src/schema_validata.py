@@ -112,6 +112,18 @@ class Config:
                             ]                  
 #---------------------------------------------------------------------------------- 
 
+class jsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)  # Handle int64
+        elif isinstance(obj, np.floating):
+            return float(obj)  # Handle float64
+        elif isinstance(obj, np.ndarray):  # Handle NumPy arrays recursively
+            return self.encode(obj.tolist())  # Convert to list for JSON encoding
+        return super().default(obj)
+
+#---------------------------------------------------------------------------------- 
+
 def get_byte_units(size_bytes):
     """Converts bytes into the largest possible unit of measure.
 
@@ -713,7 +725,7 @@ def data_dict_to_json(data_dict_file,
 
         if out_dir and out_name:
             # Convert the dictionary to a formatted JSON string
-            json_string = json.dumps(data_dict, indent=4, sort_keys=True)
+            json_string = json.dumps(data_dict, indent=4, sort_keys=True, cls=jsonEncoder)
             output_path = os.path.join(out_dir, f'{out_name}.json')
             # Save the JSON text to a file
             with open(output_path, "w") as f:
@@ -1390,7 +1402,7 @@ def dataset_schema_to_json(file_path,
 
     if out_dir and out_name:
         # Convert the dictionary to a JSON object
-        json_string = json.dumps(schema, indent=4, sort_keys=True)        
+        json_string = json.dumps(schema, indent=4, sort_keys=True, cls=jsonEncoder)        
         # Ensure the correct file extension
         if not out_name.endswith('.json'):
             out_name = f'{out_name}.json'
@@ -2547,9 +2559,9 @@ def validate_dataset(dataset_path,
                 results[uid]["results"][sheet]["value_errors"]=errs
     # convert the dictionary to a formatted JSON string & output the results
     #---------------   
-    json_string = json.dumps(results, indent=4, sort_keys=True)
 
     if bool(out_dir) and bool(out_name):
+        json_string = json.dumps(results, indent=4, sort_keys=True, cls=jsonEncoder)
         output_path = os.path.join(out_dir, f'{out_name}_({uid}).json')
         # save the JSON text to a file
         with open(output_path, "w") as f:
