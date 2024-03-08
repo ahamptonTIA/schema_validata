@@ -128,33 +128,35 @@ class Config:
 		    ]
 
     class jsonEncoder(json.JSONEncoder):
-	"""Custom JSON encoder class that handles serialization of NumPy data types
-	(int64, float64, and arrays) for compatibility with JSON.
+        """Custom JSON encoder class that handles serialization of NumPy data types
+        (int64, float64, and arrays) for compatibility with JSON.
 
-	This class inherits from `json.JSONEncoder` and overrides the `default` method
-	to provide custom logic for serializing specific object types.
-	"""
+        This class inherits from `json.JSONEncoder` and overrides the `default` method
+        to provide custom logic for serializing specific object types.
+        """
 
-	def default(self, obj):
-		"""
-		Overrides the default method of JSONEncoder to handle specific object types.
+        def default(self, obj):
+            """
+            Overrides the default method of JSONEncoder to handle specific object types.
 
-		Args:
-			obj: The object to be serialized.
-
-		Returns:
-			A JSON-serializable representation of the object.
-		"""
-		if isinstance(obj, np.integer):
-			"""Handle NumPy integer types (e.g., int64) by converting them to regular Python int."""
-			return int(obj)
-		elif isinstance(obj, np.floating):
-			"""Handle NumPy floating-point types (e.g., float64) by converting them to regular Python float."""
-			return float(obj)
-		elif isinstance(obj, np.ndarray):
-			"""Handle NumPy arrays by converting them to lists for JSON encoding."""
-			return self.encode(obj.tolist())  # Recursively convert to list
-		return super().default(obj)
+            Parameters
+            ----------
+            obj: 
+                The object to be serialized.
+            Returns
+            -------
+                A JSON-serializable representation of the object.
+            """
+            if isinstance(obj, np.integer):
+                """Handle NumPy integer types (e.g., int64) by converting them to regular Python int."""
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                """Handle NumPy floating-point types (e.g., float64) by converting them to regular Python float."""
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                """Handle NumPy arrays by converting them to lists for JSON encoding."""
+                return self.encode(obj.tolist())  # Recursively convert to list
+            return super().default(obj)
 
 #---------------------------------------------------------------------------------- 
 
