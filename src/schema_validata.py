@@ -30,6 +30,22 @@ except:
 
 # Config class
 class Config:
+    """
+    Configuration class for storing package constants and settings.
+
+    This class provides a central location for managing configuration settings
+    and constants used throughout the schema_validata package.
+
+    Attributes:
+        NA_VALUES (list): List of strings representing values to be treated as NaN.
+        NA_PATTERNS (list): List of regex patterns for identifying values to be treated as NaN.
+        DATE_FORMAT (str): Default date format used for parsing dates in the application.
+        ...
+    Example:
+        config/DATA_DICT_PRIMARY_KEY = 'Name' # Changing a configuration attribute 
+        print(config.NA_VALUES)  # Accessing a configuration attribute
+    """
+    
     # Data dictionary schema
     DATA_DICT_SCHEMA = {
         "field_name": "object",
@@ -109,19 +125,39 @@ class Config:
                             r'(?i)^\s*N\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}A\s*$',
                             r'(?i)^\s*(?:\s|_|-|/|\\|/){1}\s*$',
                             r'^\s+$'
-                            ]                  
+                            ]             
+    
 #---------------------------------------------------------------------------------- 
 
-class jsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)  # Handle int64
-        elif isinstance(obj, np.floating):
-            return float(obj)  # Handle float64
-        elif isinstance(obj, np.ndarray):  # Handle NumPy arrays recursively
-            return self.encode(obj.tolist())  # Convert to list for JSON encoding
-        return super().default(obj)
+class CustomEncoder(json.JSONEncoder):
+	"""Custom JSON encoder class that handles serialization of NumPy data types
+	(int64, float64, and arrays) for compatibility with JSON.
 
+	This class inherits from `json.JSONEncoder` and overrides the `default` method
+	to provide custom logic for serializing specific object types.
+	"""
+
+	def default(self, obj):
+		"""
+		Overrides the default method of JSONEncoder to handle specific object types.
+
+		Args:
+			obj: The object to be serialized.
+
+		Returns:
+			A JSON-serializable representation of the object.
+		"""
+		if isinstance(obj, np.integer):
+			"""Handle NumPy integer types (e.g., int64) by converting them to regular Python int."""
+			return int(obj)
+		elif isinstance(obj, np.floating):
+			"""Handle NumPy floating-point types (e.g., float64) by converting them to regular Python float."""
+			return float(obj)
+		elif isinstance(obj, np.ndarray):
+			"""Handle NumPy arrays by converting them to lists for JSON encoding."""
+			return self.encode(obj.tolist())  # Recursively convert to list
+		return super().default(obj)
+        
 #---------------------------------------------------------------------------------- 
 
 def get_byte_units(size_bytes):
