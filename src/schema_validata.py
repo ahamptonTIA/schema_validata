@@ -121,15 +121,13 @@ class Config:
 
     # Standard pattern reps for nulls, values will be converted to nulls
     NA_PATTERNS = [
-                            r'(?i)^\s*Not\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}AVAILABLE\s*$',
-                            r'(?i)^\s*N\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}A\s*$',
-                            r'(?i)^\s*(?:\s|_|-|/|\\|/){1}\s*$',
-                            r'^\s+$'
-                            ]             
-    
-#---------------------------------------------------------------------------------- 
+		    r'(?i)^\s*Not\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}AVAILABLE\s*$',
+		    r'(?i)^\s*N\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}A\s*$',
+		    r'(?i)^\s*(?:\s|_|-|/|\\|/){1}\s*$',
+		    r'^\s+$'
+		    ]
 
-class CustomEncoder(json.JSONEncoder):
+    class jsonEncoder(json.JSONEncoder):
 	"""Custom JSON encoder class that handles serialization of NumPy data types
 	(int64, float64, and arrays) for compatibility with JSON.
 
@@ -157,7 +155,7 @@ class CustomEncoder(json.JSONEncoder):
 			"""Handle NumPy arrays by converting them to lists for JSON encoding."""
 			return self.encode(obj.tolist())  # Recursively convert to list
 		return super().default(obj)
-        
+
 #---------------------------------------------------------------------------------- 
 
 def get_byte_units(size_bytes):
@@ -761,7 +759,7 @@ def data_dict_to_json(data_dict_file,
 
         if out_dir and out_name:
             # Convert the dictionary to a formatted JSON string
-            json_string = json.dumps(data_dict, indent=4, sort_keys=True, cls=jsonEncoder)
+            json_string = json.dumps(data_dict, indent=4, sort_keys=True, cls=Config.jsonEncoder)
             output_path = os.path.join(out_dir, f'{out_name}.json')
             # Save the JSON text to a file
             with open(output_path, "w") as f:
@@ -1438,7 +1436,7 @@ def dataset_schema_to_json(file_path,
 
     if out_dir and out_name:
         # Convert the dictionary to a JSON object
-        json_string = json.dumps(schema, indent=4, sort_keys=True, cls=jsonEncoder)        
+        json_string = json.dumps(schema, indent=4, sort_keys=True, cls=Config.jsonEncoder)        
         # Ensure the correct file extension
         if not out_name.endswith('.json'):
             out_name = f'{out_name}.json'
@@ -2598,7 +2596,7 @@ def validate_dataset(dataset_path,
     #---------------   
 
     if bool(out_dir) and bool(out_name):
-        json_string = json.dumps(results, indent=4, sort_keys=True, cls=jsonEncoder)
+        json_string = json.dumps(results, indent=4, sort_keys=True, cls=Config.jsonEncoder)
         output_path = os.path.join(out_dir, f'{out_name}_({uid}).json')
         # save the JSON text to a file
         with open(output_path, "w") as f:
