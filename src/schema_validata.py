@@ -2551,9 +2551,10 @@ def validate_dataset(dataset_path,
     if list_errors:
         value_errors = get_value_errors(dataset_path=dataset_path, 
                                         schema_errors=results, 
-                                        data_dictionary=data_dict, 
+                                        data_dict=data_dict, 
                                         schema_mapping=schema_mapping,
                                         ignore_errors=ignore_errors)
+
         if value_errors:
             for sheet, errs in value_errors[uid].items():
                 results[uid]["results"][sheet]["value_errors"]=errs
