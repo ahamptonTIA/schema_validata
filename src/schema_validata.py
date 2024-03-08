@@ -1384,15 +1384,13 @@ def dataset_schema_to_json(file_path,
     for sheet_name, dataframe in dataframes.items():
         # Generate the schema dictionary
         schema[sheet_name] = build_data_dictionary(dataframe)
-
-    # Convert the dictionary to a JSON object
-    json_string = json.dumps(schema, indent=4, sort_keys=True)
         
     # Convert any nested string literal lists, dicts, tuples into Python objects
     schema = eval_nested_string_literals(schema)
 
     if out_dir and out_name:
-        
+        # Convert the dictionary to a JSON object
+        json_string = json.dumps(schema, indent=4, sort_keys=True)        
         # Ensure the correct file extension
         if not out_name.endswith('.json'):
             out_name = f'{out_name}.json'
