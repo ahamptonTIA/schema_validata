@@ -1901,7 +1901,7 @@ def schema_validate_attribute(attribute,
         return schema_validate_allow_null(attribute, p_errors)
     elif attribute == 'length':
         # Validate maximum string length
-        return schema_validate_column_lenth(attribute, p_errors)
+        return schema_validate_column_length(attribute, p_errors)
     elif attribute == 'unique_value':
         # Validate if column values are supposed to be unique
         return schema_validate_unique(attribute, p_errors)
