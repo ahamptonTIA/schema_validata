@@ -2389,7 +2389,7 @@ def get_value_errors(dataset_path,
         unique_cols = [k for k in auth_schema.keys() 
                        if auth_schema[k]['unique_value']]
         unique_column = unique_cols[0] if unique_cols else None
-        unique_column = get_best_uid_column(df, prefer_col=unique_column)
+        unique_column = get_best_uid_column(df, preferred_column=unique_column)
 
         if schema_violations:
             for col, errors in schema_violations.items():
