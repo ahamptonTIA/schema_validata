@@ -741,8 +741,8 @@ def data_dict_to_json(data_dict_file,
         # Iterate through the dataframes to create a new subset dictionary
         data_dict = {}
         for sheet_name, df in dfs.items():
-            # Check if each sheet/tab matches the data dictionary columns/schema
-            if set(Config.DATA_DICT_SCHEMA.keys()).issubset(set(df.columns)):
+            # Check if each sheet/tab matches the data dictionary columns/schema and is not empty
+            if set(Config.DATA_DICT_SCHEMA.keys()).issubset(set(df.columns)) and len(df) != 0 :
                 # Ensure data types
                 df_with_types = df.astype(Config.DATA_DICT_SCHEMA, errors='ignore') 
                 # Ignore rows without a field/column name
