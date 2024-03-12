@@ -1982,6 +1982,16 @@ def validate_schema(observed_schema,
     _SET = Config.SCHEMA_ERROR_TEMPLATES
     # Iterate over the schema_mapping object to test datasets against 
     # the given data dictionary
+
+    # clean up the schema_mapping dict to remove refencse which have not data dict defined
+    clean_mapping = schema_mapping[:]  # Create a copy
+    for mapping in clean_mapping:
+        data_dict_section = mapping['data_dict']
+        if not data_dictionary.get(data_dict_section):
+            schema_mapping.remove(mapping)
+            print(f'''Warning: Authoritative schema not found for "{data_dict_section}". 
+            Please check schema_mapping and update the data dictionary if needed.''')
+			    
     for mapping in schema_mapping:
         observed_dataset = mapping['dataset']
         data_dict_section = mapping['data_dict']
@@ -1990,9 +2000,8 @@ def validate_schema(observed_schema,
         auth_schema = data_dictionary.get(data_dict_section)
 
         if not auth_schema:
-            print(f'''Warning: Authoritative schema not found for "{data_dict_section}". 
-            Please check schema_mapping and update data dictionary if needed.''')
-            continue
+            raise ValueError(f'''Authoritative schema "{data_dict_section}" not found. 
+            Please check schema_mapping and update the data dictionary as needed!''')
 
         # Initialize the results dict
         v_results = {}
