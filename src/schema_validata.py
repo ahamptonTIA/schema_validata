@@ -1990,9 +1990,9 @@ def validate_schema(observed_schema,
         auth_schema = data_dictionary.get(data_dict_section)
 
         if not auth_schema:
-		print(f'''Warning: Authoritative schema not found for "{data_dict_section}". 
-  		Please check schema_mapping and update data dictionary if needed.''')
-		continue
+            print(f'''Warning: Authoritative schema not found for "{data_dict_section}". 
+            Please check schema_mapping and update data dictionary if needed.''')
+            continue
 
         # Initialize the results dict
         v_results = {}
