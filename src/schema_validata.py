@@ -121,7 +121,7 @@ class Config:
 
     # Standard pattern reps for nulls, values will be converted to nulls
     NA_PATTERNS = [
-		    r'(?i)^\s*Not\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}AVAILABLE\s*$',
+		    r'(?i)^\s*NOT\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}AVAILABLE\s*$',
 		    r'(?i)^\s*N\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}A\s*$',
 		    r'(?i)^\s*(?:\s|_|-|/|\\|/){1}\s*$',
 		    r'^\s+$'
