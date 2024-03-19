@@ -277,6 +277,29 @@ def get_spreadsheet_metadata(file_path):
 
 # ----------------------------------------------------------------------------------
 
+def is_numeric_type(value):
+    """
+    Checks if a value is a common numeric data type in 
+    pandas, NumPy, or Python.
+
+    Parameters:
+    ----------
+        value: The value to check.
+    Returns:
+    -------
+        bool: True if the value is numeric, False otherwise.
+    """
+    # Check for standard numeric types (int, float, complex)
+    if isinstance(value, (int, float, complex)):
+        return True
+    # Check for NumPy numeric dtypes using np.issubdtype
+    elif np.issubdtype(type(value), np.number):
+        return True
+    else:
+        return False
+
+# ----------------------------------------------------------------------------------
+
 def downcast_ints(value):
     """
     Downcast a numeric value to an integer if it is equal to 
@@ -1214,7 +1237,7 @@ def series_hasNull(series,
 
 #---------------------------------------------------------------------------------- 
 
-def get_numeric_range(series, 
+def get_numeric_range(pd_series, 
                       attribute,
                       na_val=None
                       ):
@@ -1223,7 +1246,7 @@ def get_numeric_range(series,
     numerical and non-numerical cases.
 
     Parameters:
-        series (pd.Series): 
+        pd_series (pd.Series): 
             The Pandas Series to process.
         attribute (str): 
             The desired statistical attribute, either 'min' or 'max'.
@@ -1238,12 +1261,17 @@ def get_numeric_range(series,
             value as an integer if possible; otherwise, returns it as a float. If the 
             Series is empty or non-numeric, returns (na_val).
     """
-    _s = series.dropna()
+    # Check for integers or float
+    _s = pd_series.replace(r'^\s+$', pd.NA, regex=True)
+    _s.fillna(pd.NA)  
     try:
         _s = pd.to_numeric(_s)
+        _s.fillna(pd.NA) 
     except:
         pass
-    
+
+    _s = _s.dropna()
+
     if not pd.api.types.is_numeric_dtype(_s):
         return na_val  # Return `na_val` for non-numeric Series
     
@@ -1817,9 +1845,9 @@ def schema_validate_range(attribute,
     """
 
     # Check if the expected range is a numeric value
-    if isinstance(p_errors[attribute]['expected'], (int, float)):
+    if is_numeric_type(p_errors[attribute]['expected']):
         # Check if the observed value is also a numeric value
-        if isinstance(p_errors[attribute]['observed'], (int, float)):
+        if is_numeric_type(p_errors[attribute]['observed']):
             exp_val = p_errors[attribute]['expected']
             obs_val = p_errors[attribute]['observed']
 
@@ -2290,9 +2318,11 @@ def value_errors_out_of_range(df,
     results = []
 
     # Check for integers or float
-    numeric_column = df[column_name].notna()
+    numeric_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
+    numeric_column.fillna(pd.NA)  
     try:
         numeric_column = pd.to_numeric(numeric_column)
+        numeric_column.fillna(pd.NA) 
     except:
         pass
 
@@ -2463,20 +2493,20 @@ def get_value_errors(dataset_path,
                     )
                 if 'range_max' in flagged_errs \
                     and 'range_max' not in ignore_errors:
-                    max_len = errors['range_max']['expected']
+                    rng_max = errors['range_max']['expected']
                     sheet_v_errors.append(
                         value_errors_out_of_range(df, col, 
                                                   test_type='max', 
-                                                  value=max_len, 
+                                                  value=rng_max, 
                                                   unique_column=unique_column)
                     )
                 if 'range_min' in flagged_errs \
                     and 'range_min' not in ignore_errors:
-                    min_len = errors['range_min']['expected']
+                    rng_min = errors['range_min']['expected']
                     sheet_v_errors.append(
                         value_errors_out_of_range(df, col, 
                                                   test_type='min', 
-                                                  value=min_len, 
+                                                  value=rng_min, 
                                                   unique_column=unique_column)
                     )
                 if 'allowed_value_list' in flagged_errs \
