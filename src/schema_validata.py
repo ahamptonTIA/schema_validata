@@ -277,6 +277,29 @@ def get_spreadsheet_metadata(file_path):
 
 # ----------------------------------------------------------------------------------
 
+def is_numeric_type(value):
+    """
+    Checks if a value is a common numeric data type in 
+    pandas, NumPy, or Python.
+
+    Parameters:
+    ----------
+        value: The value to check.
+    Returns:
+    -------
+        bool: True if the value is numeric, False otherwise.
+    """
+    # Check for standard numeric types (int, float, complex)
+    if isinstance(value, (int, float, complex)):
+        return True
+    # Check for NumPy numeric dtypes using np.issubdtype
+    elif np.issubdtype(type(value), np.number):
+        return True
+    else:
+        return False
+
+# ----------------------------------------------------------------------------------
+
 def downcast_ints(value):
     """
     Downcast a numeric value to an integer if it is equal to 
@@ -1817,9 +1840,9 @@ def schema_validate_range(attribute,
     """
 
     # Check if the expected range is a numeric value
-    if isinstance(p_errors[attribute]['expected'], (int, float)):
+    if is_numeric_type(p_errors[attribute]['expected']):
         # Check if the observed value is also a numeric value
-        if isinstance(p_errors[attribute]['observed'], (int, float)):
+        if is_numeric_type(p_errors[attribute]['observed']):
             exp_val = p_errors[attribute]['expected']
             obs_val = p_errors[attribute]['observed']
 
