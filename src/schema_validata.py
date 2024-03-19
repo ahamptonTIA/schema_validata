@@ -1981,7 +1981,8 @@ def validate_schema(observed_schema,
     schema_violations = {}
     _SET = Config.SCHEMA_ERROR_TEMPLATES
 
-    # clean up the schema_mapping dict to remove refencse which have not data dict defined
+    # clean up the schema_mapping dict to remove references which have not data dict defined 
+    # this modifies the original dictionary supplied 
     clean_mapping = schema_mapping[:]  # Create a copy
     for mapping in clean_mapping:
         data_dict_section = mapping['data_dict']
