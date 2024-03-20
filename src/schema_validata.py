@@ -694,6 +694,9 @@ def read_spreadsheets(file_path,
     if rm_newlines:
         df = remove_pd_df_newlines(df, replace_char=replace_char)
 
+    # Use str.strip() to remove leading and trailing spaces from column names
+    df.columns = df.columns.str.strip()
+
     return df
 
 # ----------------------------------------------------------------------------------
