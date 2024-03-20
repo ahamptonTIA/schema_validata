@@ -595,7 +595,8 @@ def detect_file_encoding(file_path):
     str:
         The detected character encoding of the file. If chardet cannot
         determine the encoding with sufficient confidence (less than 50%),
-        the function returns 'utf-8' as a default fallback.
+        the function returns the pandas default encoding=None or ('utf-8') 
+        as a default fallback.
     Raises:
     ----------
     OSError:
@@ -607,7 +608,7 @@ def detect_file_encoding(file_path):
         with open(file_path, 'rb') as f:
             rawdata = f.read()
     except OSError as e:
-        raise OSError(f"Error opening file: {filename}. {e}")
+        raise OSError(f"Error opening file: {file_path}. {e}")
 
     # Use chardet to analyze the byte data and detect encoding
     result = chardet.detect(rawdata)
@@ -617,8 +618,8 @@ def detect_file_encoding(file_path):
         encoding = result['encoding']
     else:
         # Confidence level below 50%, return a safe default encoding (utf-8)
-        encoding = 'utf-8'
-        print(f"Encoding confidence for '{file_path}' is low (< 50%). Using 'utf-8' as fallback.")
+        encoding = None
+        print(f"Encoding confidence for '{file_path}' is low (< 50%). Using pandas default.")
 
     return encoding
 
