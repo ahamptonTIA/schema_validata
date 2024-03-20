@@ -674,16 +674,16 @@ def read_spreadsheets(file_path,
     filename = os.path.basename(file_path)
     base_name, ext = os.path.splitext(filename)
     
-    encoding=detect_file_encoding(file_path)
+    
 
     if ext in [".xlsx", ".xls"]:
         xls = pd.ExcelFile(file_path)  
         df = pd.read_excel(file_path, 
                            sheet_name=sheet_name, 
                            dtype=dtype, 
-                           na_values=na_values,
-                           encoding=encoding)
+                           na_values=na_values)
     elif ext == ".csv":
+        encoding=detect_file_encoding(file_path)
         df = pd.read_csv(file_path, 
                          dtype=dtype, 
                          na_values=na_values,
