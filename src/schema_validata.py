@@ -1602,14 +1602,12 @@ def write_dataframes_to_xlsx(dataframes,
                         new_sheet_name = f"{count}_{sheet_name}"
                         chunk.to_excel(writer, 
                                        sheet_name=new_sheet_name, 
-                                       index=False,
-                                       encoding='utf-8')
+                                       index=False)
                         count += 1
             else:
                 df.to_excel(writer, 
                             sheet_name=sheet_name, 
-                            index=False,
-                            encoding='utf-8')
+                            index=False)
 
     # Overwrite the file if it exists already
     if os.path.exists(output_path):
