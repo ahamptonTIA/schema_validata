@@ -4,6 +4,7 @@ import json
 import ast
 import math
 import hashlib
+import chardet
 import re
 import warnings
 from datetime import datetime
@@ -577,6 +578,53 @@ def infer_datetime_column(df,
 
 # ----------------------------------------------------------------------------------
 
+def detect_file_encoding(file_path):
+    """Detects the character encoding of a text-based file using chardet library.
+
+    This function is useful for determining the appropriate encoding when reading
+    files that may not explicitly declare their encoding. It analyzes a sample
+    of the file's content to identify the most likely character encoding scheme
+    used.
+
+    Parameters:
+    ----------
+    file_path (str):
+        The path to the target file.
+    Returns:
+    ----------
+    str:
+        The detected character encoding of the file. If chardet cannot
+        determine the encoding with sufficient confidence (less than 50%),
+        the function returns the pandas default encoding=None or ('utf-8') 
+        as a default fallback.
+    Raises:
+    ----------
+    OSError:
+        If the specified file cannot be opened for reading.
+    """
+
+    try:
+        # Open the file in binary mode to read raw bytes
+        with open(file_path, 'rb') as f:
+            rawdata = f.read()
+    except OSError as e:
+        raise OSError(f"Error opening file: {file_path}. {e}")
+
+    # Use chardet to analyze the byte data and detect encoding
+    result = chardet.detect(rawdata)
+
+    # Check confidence level of the detection
+    if result['confidence'] > 0.5:
+        encoding = result['encoding']
+    else:
+        # Confidence level below 50%, return a safe default encoding (utf-8)
+        encoding = None
+        print(f"Encoding confidence for '{file_path}' is low (< 50%). Using pandas default.")
+
+    return encoding
+
+# ----------------------------------------------------------------------------------
+
 def read_spreadsheets(file_path, 
                       sheet_name=None, 
                       dtype=None, 
@@ -626,6 +674,8 @@ def read_spreadsheets(file_path,
     filename = os.path.basename(file_path)
     base_name, ext = os.path.splitext(filename)
     
+    
+
     if ext in [".xlsx", ".xls"]:
         xls = pd.ExcelFile(file_path)  
         df = pd.read_excel(file_path, 
@@ -633,12 +683,19 @@ def read_spreadsheets(file_path,
                            dtype=dtype, 
                            na_values=na_values)
     elif ext == ".csv":
-        df = pd.read_csv(file_path, dtype=dtype, na_values=na_values)
+        encoding=detect_file_encoding(file_path)
+        df = pd.read_csv(file_path, 
+                         dtype=dtype, 
+                         na_values=na_values,
+                         encoding=encoding)
     else:
         raise ValueError(f"Unsupported file extension: {ext}")
 
     if rm_newlines:
         df = remove_pd_df_newlines(df, replace_char=replace_char)
+
+    # Use str.strip() to remove leading and trailing spaces from column names
+    df.columns = df.columns.str.strip()
 
     return df
 
@@ -1551,7 +1608,9 @@ def write_dataframes_to_xlsx(dataframes,
                                        index=False)
                         count += 1
             else:
-                df.to_excel(writer, sheet_name=sheet_name, index=False)
+                df.to_excel(writer, 
+                            sheet_name=sheet_name, 
+                            index=False)
 
     # Overwrite the file if it exists already
     if os.path.exists(output_path):
