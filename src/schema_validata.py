@@ -2635,7 +2635,7 @@ def validate_dataset(dataset_path,
         Desired name for the output JSON file (without extension). 
         Default: None.
     ignore_errors : list, optional
-        Specifys a list of error types to suppress at the individual 
+        Specifies a list of error types to suppress at the individual 
 	value level. Errors of these types will still be included in 
  	the overall error counts but will be omitted from row-level 
   	value errors to improve readability and reduce output size.
