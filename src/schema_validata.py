@@ -2627,16 +2627,19 @@ def validate_dataset(dataset_path,
     list_errors : bool, optional
         Option to list all row.value level errors in a sheet/tab named
         in reference to the original dataset. 
-        Defaults to True.
+        Default: True.
     out_dir : str, optional
         Path to the output directory for the JSON file. 
-        Defaults to None.
+        Default: None.
     out_name : str, optional
         Desired name for the output JSON file (without extension). 
-        Defaults to None.
+        Default: None.
     ignore_errors : list, optional
-        A list of error types to exclude from the analysis. 
-        Default is ['allow_null'].               
+        Specifys a list of error types to suppress at the individual 
+	value level. Errors of these types will still be included in 
+ 	the overall error counts but will be omitted from row-level 
+  	value errors to improve readability and reduce output size.
+        Default: ['allow_null'] (suppresses null value errors)
     Returns
     -------
     dict
