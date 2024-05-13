@@ -1536,33 +1536,33 @@ def dataset_schema_to_json(file_path,
         with open(output_path, "w") as file:
             file.write(json_string)
         print(f'Data dictionary saved to: {output_path}')
-
+    
     return schema
 
 #---------------------------------------------------------------------------------- 
 
-def write_dataframes_to_xlsx(dataframes, 
-                             out_dir, 
-                             out_name, 
-                             sheet_order=None
-                             ):
+def write_dataframes_to_xlsx(dataframes,
+                             out_dir,
+                             out_name,
+                             sheet_order=None):
     """
-    Writes a dictionary of DataFrames to an xlsx file with a given sheet 
+    Writes a dictionary of DataFrames to an xlsx file with a given sheet
     order, handling chunking for DataFrames exceeding Excel limits.
 
     Parameters:
     ----------
         dataframes (dict):
-            A dictionary of key-value pairs where keys are sheet 
+            A dictionary of key-value pairs where keys are sheet
             output names and values are pandas DataFrames.
-        out_dir (str): 
-            Path to the output directory for the xlsx file. 
-        out_name (str): 
-            Desired name for the output xlsx file. 
-        sheet_order (list): 
-            A list specifying the desired order of the sheets in 
+        out_dir (str):
+            Path to the output directory for the xlsx file.
+        out_name (str):
+            Desired name for the output xlsx file.
+        sheet_order (list):
+            A list specifying the desired order of the sheets in
             the output spreadsheet.
-            Defaults to dictionary keys.          
+            Defaults to dictionary keys.
+
     Returns:
     -------
         output_path (str):
@@ -1583,7 +1583,7 @@ def write_dataframes_to_xlsx(dataframes,
     # Create an ExcelWriter object
     writer = pd.ExcelWriter(output_path)
 
-    # Create a tempfile as some environments don't allow file seek 
+    # Create a tempfile as some environments don't allow file seek
     # (i.e dataBricks w/Azure Blob)
     temp_file = '/tmp/temp.xlsx'
     with pd.ExcelWriter(temp_file) as writer:
@@ -1593,23 +1593,35 @@ def write_dataframes_to_xlsx(dataframes,
 
             # Check if splitting is needed
             if df.shape[0] > MAX_ROWS_EXCEL or df.shape[1] > MAX_COLS_EXCEL:
-                chunk_size = MAX_ROWS_EXCEL  
+                chunk_size = MAX_ROWS_EXCEL
                 count = 1
+                current_sheet_rows = 0
 
-                for i in range(0, len(df), chunk_size)::
+                for i in range(0, len(df), chunk_size):
                     chunk = df[i:]  # Slice from current position to the end
-		    df = df[:i]  # Update df to exclude written data
-		    new_sheet_name = f"{count}_{sheet_name}"
-		    chunk.to_excel(writer, 
-                                   sheet_name=new_sheet_name, 
-				   index=False)
-                    count += 1
-		    # Exit the loop if no data is remaining
-		    if len(df) == 0:
-		        break	
+                    df = df[:i]  # Update df to exclude written data
+
+                    # Combine the last two chunks if exceeding max rows
+                    if current_sheet_rows + len(chunk) > MAX_ROWS_EXCEL:
+                        new_sheet_name = f"{count}_{sheet_name}"
+                        chunk.to_excel(writer,
+                                       sheet_name=new_sheet_name,
+                                       index=False)
+                        count += 1
+                        current_sheet_rows = len(chunk)
+                    else:
+                        chunk.to_excel(writer,
+                                       sheet_name=f"{count}_{sheet_name}",  # Use existing sheet name
+                                       index=False)
+                        current_sheet_rows += len(chunk)
+
+                    # Exit the loop if no data is remaining
+                    if len(df) == 0:
+                        break
+
             else:
-                df.to_excel(writer, 
-                            sheet_name=sheet_name, 
+                df.to_excel(writer,
+                            sheet_name=sheet_name,
                             index=False)
 
     # Overwrite the file if it exists already
@@ -1623,7 +1635,7 @@ def write_dataframes_to_xlsx(dataframes,
     except:
         pass
     return output_path
-
+				     
 #---------------------------------------------------------------------------------- 
 
 def dataset_schema_to_xlsx(file_path, 
