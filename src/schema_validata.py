@@ -1596,17 +1596,17 @@ def write_dataframes_to_xlsx(dataframes,
                 chunk_size = MAX_ROWS_EXCEL  
                 count = 1
 
-                while len(df) > 0:
-                    chunk = df[:chunk_size]
-                    df = df[chunk_size:]
-
-                    # Use a generator expression for iteration over chunks
-                    for chunk in (df[i:i+chunk_size] for i in range(0, len(df), chunk_size)):
-                        new_sheet_name = f"{count}_{sheet_name}"
-                        chunk.to_excel(writer, 
-                                       sheet_name=new_sheet_name, 
-                                       index=False)
-                        count += 1
+                for i in range(0, len(df), chunk_size)::
+                    chunk = df[i:]  # Slice from current position to the end
+		    df = df[:i]  # Update df to exclude written data
+		    new_sheet_name = f"{count}_{sheet_name}"
+		    chunk.to_excel(writer, 
+                                   sheet_name=new_sheet_name, 
+				   index=False)
+                    count += 1
+		    # Exit the loop if no data is remaining
+		    if len(df) == 0:
+		        break	
             else:
                 df.to_excel(writer, 
                             sheet_name=sheet_name, 
