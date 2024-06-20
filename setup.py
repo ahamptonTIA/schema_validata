@@ -32,7 +32,7 @@ setuptools.setup(
     packages=setuptools.find_packages(where="src"), # list of all python modules to be installed
     install_requires=[           # package dependencies                
                      'pandas>=1.0',
-                     'numpy<=1.18.1',
+                     'numpy<=1.26.4',
                      'openpyxl',
 
                     ]
