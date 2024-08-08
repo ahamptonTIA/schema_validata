@@ -2322,7 +2322,8 @@ def value_errors_length(df,
     """
     try:
         # Attempt to convert all values to strings
-        str_values = df[column_name].fillna('').astype(str)
+        #str_values = df[column_name].fillna('').astype(str)
+	str_values = df[column_name].astype(str, errors='ignore').fillna('')
     except ValueError:
         return []  # Conversion failed, handle exceeding values
 
