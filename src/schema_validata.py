@@ -2323,7 +2323,7 @@ def value_errors_length(df,
     try:
         # Attempt to convert all values to strings
         #str_values = df[column_name].fillna('').astype(str)
-	str_values = df[column_name].astype(str, errors='ignore').fillna('')
+        str_values = df[column_name].astype(str, errors='ignore').fillna('')
     except ValueError:
         return []  # Conversion failed, handle exceeding values
 
@@ -2629,19 +2629,16 @@ def validate_dataset(dataset_path,
     list_errors : bool, optional
         Option to list all row.value level errors in a sheet/tab named
         in reference to the original dataset. 
-        Default: True.
+        Defaults to True.
     out_dir : str, optional
         Path to the output directory for the JSON file. 
-        Default: None.
+        Defaults to None.
     out_name : str, optional
         Desired name for the output JSON file (without extension). 
-        Default: None.
+        Defaults to None.
     ignore_errors : list, optional
-        Specifies a list of error types to suppress at the individual 
-	value level. Errors of these types will still be included in 
- 	the overall error counts but will be omitted from row-level 
-  	value errors to improve readability and reduce output size.
-        Default: ['allow_null'] (suppresses null value errors)
+        A list of error types to exclude from the analysis. 
+        Default is ['allow_null'].               
     Returns
     -------
     dict
