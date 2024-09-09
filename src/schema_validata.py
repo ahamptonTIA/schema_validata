@@ -371,15 +371,17 @@ def get_best_uid_column(df,
         return preferred_column
 
     # Prioritize preferred_column in case of ties
-    if len(uid_cols) > 1 and preferred_column:
-        uid_cols = [c for c in uid_cols 
-                    if uniq_cnts[c] > uniq_cnts[preferred_column]]
-        if len(uid_cols) == 0:
-            return preferred_column
+    if len(uid_cols) > 0:
+        if bool(preferred_column):
+            uid_cols = [c for c in uid_cols 
+                        if uniq_cnts[c] > uniq_cnts[preferred_column]]
+            if len(uid_cols) == 0:
+                return preferred_column
+            else:
+                return uid_cols[0]
         # Return the first column if tied
-        return uid_cols[0]
-    else:
-        return preferred_column
+        else:
+            return uid_cols[0]
 
 # ----------------------------------------------------------------------------------
 
