@@ -549,7 +549,7 @@ def infer_datetime_column(df,
 
             # Check if all non-null values can be parsed as
             # standalone timestamps. If so, leave it be
-            is_timestamp = any(column_is_timestamp(
+            is_timestamp = all(column_is_timestamp(
                                 df, 
                                 column_name, 
                                 ts_format) 
