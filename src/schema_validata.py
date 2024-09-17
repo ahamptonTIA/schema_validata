@@ -11,8 +11,9 @@ from datetime import datetime
 from dateutil import parser as dt_parser
 import pandas as pd
 import numpy as np
+import importlib
 
-#---------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------
 
 # warnings to silence
 warnings.simplefilter("ignore", UserWarning)
@@ -122,7 +123,7 @@ class Config:
 
     # Standard pattern reps for nulls, values will be converted to nulls
     NA_PATTERNS = [
-		    r'(?i)^\s*NOT\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}AVAILABLE\s*$',
+	        r'(?i)^\s*NOT\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}AVAILABLE\s*$',
 		    r'(?i)^\s*N\s{0,1}(?:\s|_|-|/|\\|/){1}\s{0,1}A\s*$',
 		    r'(?i)^\s*(?:\s|_|-|/|\\|/){1}\s*$',
 		    r'^\s+$'
@@ -159,6 +160,31 @@ class Config:
                 return self.encode(obj.tolist())  # Recursively convert to list
             return super().default(obj)
 
+    def is_pyspark_installed():
+        """Checks if PySpark is installed."""
+        return importlib.util.find_spec('pyspark') is not None
+
+    def check_pyspark_pandas(self):
+        """Checks if PySpark is available, has the 
+        correct version, and environment variables are set."""
+
+        if not is_pyspark_installed():
+            self.PYSPARK_PANDAS = False
+
+        import pyspark
+        try:
+            import pyspark.pandas as ps
+        except ImportError:
+            self.PYSPARK_PANDAS = False
+
+        spark_version = pyspark.__version__
+        # Replace with the minimum required PySpark version for PySpark Pandas
+        min_required_version = "3.3.0"  # Adjust as needed
+
+        if spark_version >= min_required_version:
+            self.PYSPARK_PANDAS = True
+        else:
+            self.PYSPARK_PANDAS =  False
 #---------------------------------------------------------------------------------- 
 
 def get_byte_units(size_bytes):
