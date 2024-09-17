@@ -14,7 +14,6 @@ import numpy as np
 from sqlite3 import connect       
 from sqlparse import parse
 
-
 #---------------------------------------------------------------------------------- 
 
 # warnings to silence
@@ -2644,7 +2643,7 @@ def load_files_to_sqlite(files, include_tables=[]):
             continue
         
         # Read the file into a dictionary of DataFrames
-        dfs = sv.read_csv_or_excel_to_df(f)
+        dfs = read_csv_or_excel_to_df(f)
         
         for tn, df in dfs.items():
             # Skip the table if its name is not in the include_tables list
@@ -2761,7 +2760,7 @@ def get_rows_with_condition(tables, sql_statement, conn, error_message, error_le
     primary_table = extract_primary_table(sql_statement)
 
     # Get the best unique ID column from the primary table
-    unique_column = sv.get_best_uid_column(pd.read_sql(f'SELECT * FROM {primary_table}', conn))
+    unique_column = get_best_uid_column(pd.read_sql(f'SELECT * FROM {primary_table}', conn))
 
     # Modify the SQL statement to select the unique ID column
     modified_sql = f"""
@@ -2954,8 +2953,27 @@ def validate_dataset(dataset_path,
         if value_errors:
             for sheet, errs in value_errors[uid].items():
                 results[uid]["results"][sheet]["value_errors"]=errs
+
+     #----------------
+        # check to see if there is a data integrity rules sheet
+        ddfs = read_csv_or_excel_to_df(data_dict_path)
+        if 'Data_Integrity' in ddfs.keys():
+            di_rules_df = ddfs['Data_Integrity']
+            errors_df = find_errors_with_sql(rules_df, dataset_path)
+
+            if len(errors_df) > 0:
+                # Convert errors_df to a list of JSON objects
+                errors_json_list = errors_df.to_dict(orient='records')
+
+                summary_df = errors_df.groupby(['Primary_table', 'Message']).size()
+                results[uid]["results"]['Integrity Overview']
+
+                # Iterate over the list of JSON objects
+                for r in errors_json_list:
+                    # Process each error JSON object
+                    results[uid]["results"][r['primary_table']]["integrity_errors"]=r
+    #----------------
     # convert the dictionary to a formatted JSON string & output the results
-    #---------------   
 
     if bool(out_dir) and bool(out_name):
         json_string = json.dumps(results, indent=4, sort_keys=True, cls=Config.jsonEncoder)
@@ -2964,7 +2982,7 @@ def validate_dataset(dataset_path,
         with open(output_path, "w") as f:
             f.write(json_string)
         print(f'Data saved to: {output_path}')
-
+    #--------------- 
     return results
 
 #---------------------------------------------------------------------------------- 
@@ -3041,8 +3059,8 @@ def schema_validation_to_xlsx(validation_results,
         errors_ov_df = pd.DataFrame(columns=['Dataset', 'Column', 'Status', 
                                             'Required', 'Error Type', 'Error']) 
 
-    rpt_sheets['Errors Overview'] = errors_ov_df
-    sheet_order.append('Errors Overview')
+    rpt_sheets['Schema Overview'] = errors_ov_df
+    sheet_order.append('Schema Overview')
     # get dataframes for each dataset/sheet of value errors
     #----------------------------
     value_errors = {}
