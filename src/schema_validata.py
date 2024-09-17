@@ -11,6 +11,9 @@ from datetime import datetime
 from dateutil import parser as dt_parser
 import pandas as pd
 import numpy as np
+from sqlite3 import connect       
+from sqlparse import parse
+
 
 #---------------------------------------------------------------------------------- 
 
@@ -60,6 +63,14 @@ class Config:
         "unique_value": "object",
         "allowed_value_list": "object"
     }
+
+    # Data integrity schema
+    DATA_INTEGRITY_SCHEMA = {
+        'SQL Error Query': "object",
+        'Level': "object",
+        'Message': "object"
+    }
+
     # Data dictionary schema primary key field
     DATA_DICT_PRIMARY_KEY = "field_name"
 
@@ -2604,6 +2615,251 @@ def get_value_errors(dataset_path,
     return {uid: value_errors}
 
 #---------------------------------------------------------------------------------- 
+
+def load_files_to_sqlite(files, include_tables=[]):
+    """
+    Loads CSV files into an in-memory SQLite database.
+
+    Parameters
+    ----------
+    files : list of str, required
+        List of paths to spreadsheet files. Default is an empty list.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the SQLite3 connection object and the list of table names.
+    """
+
+    # Create an in-memory SQLite database connection
+    conn = connect(':memory:')
+    table_names = []
+
+    for f in files:
+        # Get the base name of the file without extension
+        base_name = os.path.splitext(os.path.basename(f))[0]
+        
+        # Skip the file if its base name is not in the include_tables list
+        if bool(include_tables) and base_name not in include_tables:
+            continue
+        
+        # Read the file into a dictionary of DataFrames
+        dfs = sv.read_csv_or_excel_to_df(f)
+        
+        for tn, df in dfs.items():
+            # Skip the table if its name is not in the include_tables list
+            if bool(include_tables) and tn not in include_tables:
+                continue
+            
+            table_names.append(tn)
+            # Create a table in the SQLite3 database for each DataFrame
+            df.to_sql(tn, con=conn, if_exists="replace", index=False)
+            # Clean up the DataFrame from memory
+            del df
+
+    return conn, table_names
+#---------------------------------------------------------------------------------- 
+
+def extract_primary_table(sql_statement):
+    """
+    Extracts the primary table name from an SQL statement using sqlparse.
+
+    Parameters
+    ----------
+    sql_statement : str
+        The SQL statement to parse.
+
+    Returns
+    -------
+    str
+        The primary table name if found, otherwise None.
+    """
+    parsed = parse(sql_statement)
+    for token in parsed[0].tokens:
+        if token.ttype is None and token.get_real_name():
+            return token.get_real_name()
+    return None
+
+#---------------------------------------------------------------------------------- 
+
+def extract_sql_table_refs(sql_statement):
+    """
+    Extracts all table names from an SQL statement using sqlparse.
+
+    Parameters
+    ----------
+    sql_statement : str
+        The SQL statement to parse.
+
+    Returns
+    -------
+    list
+        A list of table names found in the SQL statement.
+    """
+    parsed = parse(sql_statement)
+    table_names = []
+    
+    for token in parsed[0].tokens:
+        # Check if the token is not a keyword or punctuation and has a real name (table name)
+        if token.ttype is None and token.get_real_name():
+            table_names.append(token.get_real_name())
+        # If the token is a group (e.g., subquery), iterate through its sub-tokens
+        elif token.is_group:
+            for sub_token in token.tokens:
+                # Check if the sub-token is not a keyword or punctuation and has a real name (table name)
+                if sub_token.ttype is None and sub_token.get_real_name():
+                    table_names.append(sub_token.get_real_name())
+    
+    # Return a list of unique table names
+    return list(set(table_names))
+
+#---------------------------------------------------------------------------------- 
+
+def get_rows_with_condition(tables, sql_statement, conn, error_message, error_level='error'):
+    """
+    Returns rows with a unique ID column value where a condition is true in the first table listed in an SQL statement.
+
+    Parameters
+    ----------
+    tables : list of str
+        List of table names available in the SQLite database.
+    sql_statement : str
+        The SQL statement to execute.
+    conn : sqlite3.Connection
+        The SQLite connection object.
+    error_message : str
+        The error message to include in the results if the condition is met.
+    error_level : str, optional
+        The level of the error (default is 'error').
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the primary table name, SQL error query, lookup column, and lookup value.
+    """
+    """
+    Returns rows with a unique ID column value where a condition is true in the first table listed in an SQL statement.
+
+    Parameters
+    ----------
+    tables : list of str
+        List of table names available in the SQLite database.
+    sql_statement : str
+        The SQL statement to execute.
+    error_message : str
+        The error message to include in the results if the condition is met.
+    conn : sqlite3.Connection
+        The SQLite connection object.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the primary table name, SQL error query, lookup column, and lookup value.
+    """
+    
+    # Extract the primary table name from the SQL statement
+    primary_table = extract_primary_table(sql_statement)
+
+    # Get the best unique ID column from the primary table
+    unique_column = sv.get_best_uid_column(pd.read_sql(f'SELECT * FROM {primary_table}', conn))
+
+    # Modify the SQL statement to select the unique ID column
+    modified_sql = f"""
+                    SELECT 
+                        pt.{unique_column}
+                    FROM ({sql_statement}) AS sq
+                    LEFT JOIN {primary_table} pt ON sq.{unique_column} = pt.{unique_column}
+                    """
+
+    results = []
+    try:
+        # Execute the modified SQL statement
+        result_df = pd.read_sql(modified_sql, conn)
+
+        if result_df.empty:
+            # Append error information if no rows are returned
+            results.append({
+                "Primary_table"     : primary_table,
+                "SQL Error Query"   : sql_statement,
+                "Message"           : 'OK',
+                "Level"             : 'Good',
+                "Lookup Column"     : '',
+                "Lookup Value"      : ''
+            })
+        else:
+            # Prepare the results for each row in the result DataFrame
+            for row_index, row in result_df.iterrows():
+                results.append({
+                    "Primary_table"     : primary_table,
+                    "SQL Error Query"   : sql_statement,
+                    "Message"           : error_message,
+                    "Level"             : error_level,
+                    "Lookup Column"     : unique_column,
+                    "Lookup Value"      : row[unique_column]
+                })
+    except Exception as e:
+        # Append error information if the SQL execution fails
+        results.append({
+            "Primary_table"     : primary_table,
+            "SQL Error Query"   : sql_statement,
+            "Message"           : f"Query SQL failed: {str(e)}",
+            "Level"             : 'Error',
+            "Lookup Column"     : '',
+            "Lookup Value"      : ''
+        })
+
+    return pd.DataFrame(results)
+
+#---------------------------------------------------------------------------------- 
+
+def find_errors_with_sql(rules_df, files):
+    """
+    Identifies errors in data files based on SQL rules and returns a DataFrame of errors.
+
+    Parameters
+    ----------
+    rules_df : pd.DataFrame
+        DataFrame containing SQL rules with columns 'SQL Error Query' and 'message'.
+    files : list of str
+        List of paths to CSV files to be loaded into an in-memory SQLite database.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the primary table name, SQL error query, lookup column, and lookup value for each error found.
+    """
+    
+    # Initialize an empty DataFrame to store errors
+    errors_df = pd.DataFrame()
+
+    sql_ref_tables = []
+    # Extract table references from each SQL rule
+    for index, row in rules_df.iterrows():
+        sql_statement = row['SQL Error Query']
+        sql_ref_tables.extend(extract_sql_table_refs(sql_statement)) 
+
+    # Load CSV files into an in-memory SQLite database, including only the referenced tables
+    conn, tables = load_files_to_sqlite(files, 
+                                        include_tables=list(set((sql_ref_tables))))
+
+    # Iterate over each rule in the rules DataFrame
+    for index, row in rules_df.iterrows():
+        sql_statement = str(row['SQL Error Query'])
+        error_level = str(row['Level'])
+        error_message = str(row['Message'])
+        
+        # Get rows that meet the condition specified in the SQL statement
+        error_rows = get_rows_with_condition(tables, sql_statement, error_message, error_level, conn)
+        
+        # If there are any error rows, concatenate them to the errors DataFrame
+        if not error_rows.empty:
+            errors_df = pd.concat([errors_df, error_rows], ignore_index=True)
+    
+    return errors_df
+    
+#---------------------------------------------------------------------------------- 
+
+
 def validate_dataset(dataset_path,
                      data_dict_path,
                      schema_mapping, 
