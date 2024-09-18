@@ -690,7 +690,7 @@ def read_spreadsheets(file_path,
                       ):
     """
     Reads and processes raw data from Excel (.xlsx, .xls) or CSV (.csv) files 
-    into a pandas or pyspark.pandas DataFrame accounting for newline/return characters and datatypes. 
+    into a pandas DataFrame accounting for newline/return characters and datatypes. 
     Parameters:
     ----------
     file_path (str): 
@@ -729,37 +729,19 @@ def read_spreadsheets(file_path,
 
     filename = os.path.basename(file_path)
     base_name, ext = os.path.splitext(filename)
-
-    # Check if pyspark.pandas is available
-    use_spark_pandas = 'pyspark.pandas' in sys.modules
-    if use_spark_pandas:
-        file_path = to_dbfs_path(file_path)
-    else:
-        file_path = db_path_to_local(file_path)
+    
+    file_path = db_path_to_local(file_path)
 
     if ext in [".xlsx", ".xls"]:
-        if use_spark_pandas:
-            df = ps.read_excel(file_path, 
-                               sheet_name=sheet_name, 
-                               dtype=dtype, 
-                               na_values=na_values)
-        else:
-            df = pd.read_excel(file_path, 
-                               sheet_name=sheet_name, 
-                               dtype=dtype, 
-                               na_values=na_values)
+        df = pd.read_excel(file_path, 
+                           sheet_name=sheet_name, 
+                           dtype=dtype, 
+                           na_values=na_values)
     elif ext == ".csv":
-        if use_spark_pandas:
-            df = pd.read_csv(file_path, 
-                             dtype=dtype, 
-                             na_values=na_values,
-                             encoding=encoding)
-            df = ps.from_pandas(df)
-        else:
-            df = pd.read_csv(file_path, 
-                             dtype=dtype, 
-                             na_values=na_values,
-                             encoding=encoding)
+        df = pd.read_csv(file_path, 
+                         dtype=dtype, 
+                         na_values=na_values,
+                         encoding=encoding)
     else:
         raise ValueError(f"Unsupported file extension: {ext}")
 
@@ -768,6 +750,12 @@ def read_spreadsheets(file_path,
 
     # Use str.strip() to remove leading and trailing spaces from column names
     df.columns = df.columns.str.strip()
+
+
+    # Check if pyspark.pandas is available
+    use_spark_pandas = 'pyspark.pandas' in sys.modules
+    if use_spark_pandas:
+        df = ps.from_pandas(df)
 
     return df
 
@@ -820,10 +808,6 @@ def xlsx_tabs_to_pd_dataframes(file_path,
     filename = os.path.basename(file_path)
     base_name, ext = os.path.splitext(filename)
 
-    # Check if pyspark.pandas is available
-    use_spark_pandas = 'pyspark.pandas' in sys.modules
-    if use_spark_pandas:
-        file_path = f"dbfs:{file_path}"
 
     # Iterate through each worksheet and read its data into a DataFrame
     for sheet_name in xls.sheet_names:
@@ -987,13 +971,6 @@ def read_csv_or_excel_to_df(file_path,
         If the file has multiple sheets and multi_sheets=False, 
         or if the file format is unsupported.
     """
-
-    # Check if pyspark.pandas is available
-    use_spark_pandas = 'pyspark.pandas' in sys.modules
-    if use_spark_pandas:
-        file_path = to_dbfs_path(file_path)
-    else:
-        file_path = db_path_to_local(file_path)
         
     def read_excel_file():
         try:
@@ -1138,12 +1115,6 @@ def read_spreadsheet_with_params(file_path,
     pandas.DataFrame
         DataFrame containing data from the spreadsheet.
     """
-    # Check if pyspark.pandas is available
-    use_spark_pandas = 'pyspark.pandas' in sys.modules
-    if use_spark_pandas:
-        file_path = to_dbfs_path(file_path)
-    else:
-        file_path = db_path_to_local(file_path)
 
     return read_spreadsheets(file_path, 
                              sheet_name=sheet_name, 
