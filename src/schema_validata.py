@@ -647,7 +647,37 @@ def detect_file_encoding(file_path):
     return encoding
 
 # ----------------------------------------------------------------------------------
-
+  
+def db_path_to_local(path):
+    """Function returns a local os file path from dbfs file path
+    Parameters
+    ----------
+    path : str
+        DataBricks dbfs file storage path
+    Returns
+    ----------
+    file path: str
+        local os file path
+    """    
+    if path.startswith(r'/mnt'):
+        path = f"{r'/dbfs'}{path}"
+    return re.sub(r'^(dbfs:)', r'/dbfs', path)
+#----------------------------------------------------------------------------------    
+def to_dbfs_path(path):
+    """Function converts a local os file path to a dbfs file path
+    Parameters
+    ----------
+    path : str
+        local os file path
+    Returns
+    ----------
+    file path: str
+        DataBricks dbfs file storage path
+    """        
+    if path.startswith(r'/mnt'):
+        path = f"{r'dbfs:'}{path}"        
+    return re.sub(r'^(/dbfs)', r'dbfs:', path)   
+#----------------------------------------------------------------------------------   
 def read_spreadsheets(file_path, 
                       sheet_name=None, 
                       dtype=None, 
@@ -699,6 +729,10 @@ def read_spreadsheets(file_path,
 
     # Check if pyspark.pandas is available
     use_spark_pandas = 'pyspark.pandas' in sys.modules
+    if use_spark_pandas:
+        file_path = to_dbfs_path(file_path)
+    else:
+        file_path = db_path_to_local(file_path)
 
     if ext in [".xlsx", ".xls"]:
         if use_spark_pandas:
@@ -712,7 +746,6 @@ def read_spreadsheets(file_path,
                                dtype=dtype, 
                                na_values=na_values)
     elif ext == ".csv":
-        encoding = detect_file_encoding(file_path)
         if use_spark_pandas:
             df = pd.read_csv(file_path, 
                              dtype=dtype, 
@@ -786,6 +819,8 @@ def xlsx_tabs_to_pd_dataframes(file_path,
 
     # Check if pyspark.pandas is available
     use_spark_pandas = 'pyspark.pandas' in sys.modules
+    if use_spark_pandas:
+        file_path = f"dbfs:{file_path}"
 
     # Iterate through each worksheet and read its data into a DataFrame
     for sheet_name in xls.sheet_names:
@@ -950,6 +985,13 @@ def read_csv_or_excel_to_df(file_path,
         or if the file format is unsupported.
     """
 
+    # Check if pyspark.pandas is available
+    use_spark_pandas = 'pyspark.pandas' in sys.modules
+    if use_spark_pandas:
+        file_path = to_dbfs_path(file_path)
+    else:
+        file_path = db_path_to_local(file_path)
+        
     def read_excel_file():
         try:
             return xlsx_tabs_to_pd_dataframes(file_path, 
@@ -1093,6 +1135,13 @@ def read_spreadsheet_with_params(file_path,
     pandas.DataFrame
         DataFrame containing data from the spreadsheet.
     """
+    # Check if pyspark.pandas is available
+    use_spark_pandas = 'pyspark.pandas' in sys.modules
+    if use_spark_pandas:
+        file_path = to_dbfs_path(file_path)
+    else:
+        file_path = db_path_to_local(file_path)
+
     return read_spreadsheets(file_path, 
                              sheet_name=sheet_name, 
                              dtype=dtype, 
@@ -1142,6 +1191,13 @@ def read_df_with_optimal_dtypes(file_path,
 
     # Initialize empty data type dictionary
     dtypes = {}
+
+    # Check if pyspark.pandas is available
+    use_spark_pandas = 'pyspark.pandas' in sys.modules
+    if use_spark_pandas:
+        file_path = to_dbfs_path(file_path)
+    else:
+        file_path = db_path_to_local(file_path)
 
     # Read the sheet without specifying initial data types   
     df = read_spreadsheet_with_params(file_path, sheet_name, str, na_values)
