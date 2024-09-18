@@ -1,18 +1,22 @@
-import os
-import shutil
-import json
-import ast
-import math
-import hashlib
-import chardet
-import re
-import warnings
-from datetime import datetime
-from dateutil import parser as dt_parser
-import pandas as pd
-import numpy as np
-from sqlite3 import connect       
-from sqlparse import parse
+import os                                   # Standard library for interacting with the operating system
+import shutil                               # Standard library for high-level file operations
+import json                                 # Standard library for working with JSON objects
+import ast                                  # Standard library for parsing and processing Python abstract syntax trees
+import math                                 # Standard library for mathematical functions
+import hashlib                              # Standard library for generating hash values
+import chardet                              # Library for character encoding detection
+import re                                   # Standard library for regular expressions
+import warnings                             # Standard library for issuing warning messages
+from datetime import datetime               # Standard library for working with dates and times
+from dateutil import parser as dt_parser    # Library for parsing dates from strings
+import pandas as pd                         # Library for data manipulation and analysis
+import numpy as np                          # Library for numerical operations
+try:
+    import pyspark.pandas as ps             # Library for data manipulation and analysis with Spark
+except ImportError:
+    display("pyspark.pandas is not available in the session.")
+from sqlite3 import connect                 # Standard library for creating and managing SQLite3 databases
+import sqlparse                             # Library for parsing SQL queries
 
 #---------------------------------------------------------------------------------- 
 
@@ -335,16 +339,14 @@ def downcast_ints(value):
 
 # ----------------------------------------------------------------------------------
 
-def get_best_uid_column(df, 
-                        preferred_column=None
-                        ):
+def get_best_uid_column(df, preferred_column=None):
     """
-    Identifies the column with the most unique values 
-    (excluding nulls) in a DataFrame.
+    Identifies the column with the most unique values (excluding nulls) in a DataFrame.
+    Supports pandas, Spark, and spark.pandas DataFrames.
 
     Parameters:
     -----------
-    df : pandas.DataFrame
+    df : pandas.DataFrame or pyspark.sql.DataFrame or pyspark.pandas.DataFrame
         The input DataFrame.
     preferred_column : str, optional
         The preferred column if ties for uniqueness occur.
@@ -352,46 +354,54 @@ def get_best_uid_column(df,
     Returns:
     --------
     str or None
-        The column name with the most unique values, 
-        or None if none qualify.
+        The column name with the most unique values, or None if none qualify.
 
     Raises:
     -------
     ValueError
-        If `df` is not a pandas DataFrame.
+        If `df` is not a pandas, Spark, or spark.pandas DataFrame.
     """
-    if not isinstance(df, pd.DataFrame):
-        raise ValueError("Input must be a pandas DataFrame.")
+    # Check the type of DataFrame and set a flag
+    is_pandas = isinstance(df, pd.DataFrame)
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
+
+    if not (is_pandas or is_spark_pandas):
+        raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
     uniq_cnts = {}
-    for col in df.columns:
-        uid_dtypes = ['Integer', 'String']
-        if infer_data_types(df[col]) in uid_dtypes:
-            # Drop null values and calculate unique values
-            unique_vals = df[col].dropna().nunique()
-            # Filter only unique columns
-            uniq_cnts[col] = int(unique_vals)
+    uid_dtypes = ['Integer', 'String']
+    if is_pandas:
+        for col in df.columns:
+            if infer_data_types(df[col]) in uid_dtypes:
+                # Drop null values and calculate unique values
+                unique_vals = df[col].dropna().nunique()
+                uniq_cnts[col] = int(unique_vals)
+    else:
+        for col in df.columns:
+            if infer_data_types(df[col]) in uid_dtypes:
+                # Drop null values and calculate unique values using spark.pandas
+                unique_vals = df[col].dropna().nunique()
+                uniq_cnts[col] = int(unique_vals)
+    
 
     if bool(uniq_cnts):
         # Find the key with the highest value using a loop and max
         max_value = max(uniq_cnts.values())
-        uid_cols = [c for c, uc in uniq_cnts.items() 
-                    if uc > 0 and uc == max_value]
+
+        uid_cols = [c for c, uc in uniq_cnts.items() if uc > 0 and uc == max_value]
     else:
         return preferred_column
 
     # Prioritize preferred_column in case of ties
     if len(uid_cols) > 0:
-        if bool(preferred_column):
-            uid_cols = [c for c in uid_cols 
-                        if uniq_cnts[c] > uniq_cnts[preferred_column]]
-            if len(uid_cols) == 0:
-                return preferred_column
-            else:
-                return uid_cols[0]
+        if preferred_column:
+            uid_cols = [c for c in uid_cols if uniq_cnts[c] > uniq_cnts[preferred_column]]
+        if len(uid_cols) == 0:
+            return preferred_column
         # Return the first column if tied
-        else:
-            return uid_cols[0]
+        return uid_cols[0]
+    else:
+        return preferred_column
 
 # ----------------------------------------------------------------------------------
 
@@ -646,7 +656,7 @@ def read_spreadsheets(file_path,
                       ):
     """
     Reads and processes raw data from Excel (.xlsx, .xls) or CSV (.csv) files 
-    into a pandas DataFrame accounting for newline/return characters and datatypes. 
+    into a pandas or pyspark.pandas DataFrame accounting for newline/return characters and datatypes. 
     Parameters:
     ----------
     file_path (str): 
@@ -672,7 +682,7 @@ def read_spreadsheets(file_path,
 
     Returns:
     -------
-    pandas.DataFrame: 
+    pandas.DataFrame or pyspark.pandas.DataFrame: 
         The DataFrame containing the data from the file.
 
     Raises:
@@ -685,21 +695,34 @@ def read_spreadsheets(file_path,
 
     filename = os.path.basename(file_path)
     base_name, ext = os.path.splitext(filename)
-    
-    
+
+    # Check if pyspark.pandas is available
+    use_spark_pandas = 'pyspark.pandas' in sys.modules
 
     if ext in [".xlsx", ".xls"]:
-        xls = pd.ExcelFile(file_path)  
-        df = pd.read_excel(file_path, 
-                           sheet_name=sheet_name, 
-                           dtype=dtype, 
-                           na_values=na_values)
+        if use_spark_pandas:
+            df = ps.read_excel(file_path, 
+                               sheet_name=sheet_name, 
+                               dtype=dtype, 
+                               na_values=na_values)
+        else:
+            df = pd.read_excel(file_path, 
+                               sheet_name=sheet_name, 
+                               dtype=dtype, 
+                               na_values=na_values)
     elif ext == ".csv":
-        encoding=detect_file_encoding(file_path)
-        df = pd.read_csv(file_path, 
-                         dtype=dtype, 
-                         na_values=na_values,
-                         encoding=encoding)
+        encoding = detect_file_encoding(file_path)
+        if use_spark_pandas:
+            df = pd.read_csv(file_path, 
+                             dtype=dtype, 
+                             na_values=na_values,
+                             encoding=encoding)
+            df = ps.from_pandas(df)
+        else:
+            df = pd.read_csv(file_path, 
+                             dtype=dtype, 
+                             na_values=na_values,
+                             encoding=encoding)
     else:
         raise ValueError(f"Unsupported file extension: {ext}")
 
@@ -722,7 +745,7 @@ def xlsx_tabs_to_pd_dataframes(file_path,
                                ):
     """
     Read all sheets/tabs from an excel file into a dictionary of 
-    pandas DataFrames.
+    pandas or pyspark.pandas DataFrames.
 
     Parameters:
     ----------
@@ -760,6 +783,9 @@ def xlsx_tabs_to_pd_dataframes(file_path,
     filename = os.path.basename(file_path)
     base_name, ext = os.path.splitext(filename)
 
+    # Check if pyspark.pandas is available
+    use_spark_pandas = 'pyspark.pandas' in sys.modules
+
     # Iterate through each worksheet and read its data into a DataFrame
     for sheet_name in xls.sheet_names:
         # Choose the appropriate function based on the 'infer' parameter
@@ -778,6 +804,10 @@ def xlsx_tabs_to_pd_dataframes(file_path,
                                    replace_char=replace_char,
                                    na_values=na_values,
                                    na_patterns=na_patterns)
+
+        # Convert to pyspark.pandas DataFrame if available
+        if use_spark_pandas:
+            df = ps.from_pandas(df)
 
         # Set key for CSV files to ensure consistent dictionary keys
         key = base_name if ext == '.csv' else sheet_name
@@ -970,7 +1000,7 @@ def identify_leading_zeros(df_col):
 
     Parameters:
     ----------
-    df_col : pandas.Series
+    df_col : pandas.Series or pyspark.pandas.Series
         Column of a DataFrame.
 
     Returns:
@@ -978,7 +1008,14 @@ def identify_leading_zeros(df_col):
     bool
         True if potential leading zeros are found, False otherwise.
     """
-    return any(str(val).startswith("0") for val in df_col.dropna())
+
+    if not isinstance(df_col, (pd.Series, pyspark.pandas.Series)):
+        raise ValueError("Input must be a pandas or spark.pandas Series.")
+
+    if df_col.dtype.name == 'object':
+        return df_col.dropna().str.startswith("0").any()
+    else:
+        return df_col.dropna().astype(str).str.startswith("0").any()
 
 #---------------------------------------------------------------------------------- 
 
@@ -989,7 +1026,7 @@ def check_all_int(df_col):
 
     Parameters:
     ----------
-    df_col : pandas.Series
+    df_col : pandas.Series or pyspark.pandas.Series
         Column of a DataFrame.
 
     Returns:
@@ -997,19 +1034,35 @@ def check_all_int(df_col):
     type
         Data type to use for the column.
     """
+    is_pandas = isinstance(df_col, pd.Series)
+    is_spark_pandas = 'pyspark.pandas.series.Series' in str(type(df_col))
+
     try:
         _s = df_col.dropna()
-        try:
-            _s = pd.to_numeric(_s)
-        except:
-            pass
-        if pd.api.types.is_bool_dtype(_s):
-            return bool      
-        elif pd.api.types.is_numeric_dtype(_s):
-            all_ints = (_s - _s.astype(int) == 0).all()
-            return 'Int64' if all_ints else 'Float64'
-        else:
-            return str
+        if is_pandas:
+            try:
+                _s = pd.to_numeric(_s)
+            except:
+                pass
+            if pd.api.types.is_bool_dtype(_s):
+                return bool      
+            elif pd.api.types.is_numeric_dtype(_s):
+                all_ints = (_s - _s.astype(int) == 0).all()
+                return 'Int64' if all_ints else 'Float64'
+            else:
+                return str
+        elif is_spark_pandas:
+            try:
+                _s = _s.astype(float)
+            except:
+                pass
+            if _s.dtype == bool:
+                return bool      
+            elif _s.dtype in [int, float]:
+                all_ints = (_s - _s.astype(int) == 0).all()
+                return 'Int64' if all_ints else 'Float64'
+            else:
+                return str
     except:
         return str
 
@@ -1082,8 +1135,8 @@ def read_df_with_optimal_dtypes(file_path,
         
     Returns
     -------
-        df (pandas.DataFrame): 
-            A pandas DataFrame with inferred data types.
+        df (pandas.DataFrame or pyspark.pandas.DataFrame): 
+            A DataFrame with inferred data types.
     """
 
     # Initialize empty data type dictionary
@@ -1157,15 +1210,15 @@ def read_df_with_optimal_dtypes(file_path,
     
 #---------------------------------------------------------------------------------- 
 
-def infer_data_types(pd_series):
+def infer_data_types(series):
     """
-    Documents the most likely data type of a pandas Series based on 
-    the non-null values in a pandas.Series / column.
+    Documents the most likely data type of a pandas or Spark Series based on 
+    the non-null values in the series/column.
 
     Parameters:
     ----------
-        pd_series (pandas.Series): 
-            The pandas series/column to analyze.
+        series (pandas.Series or pyspark.pandas.Series): 
+            The series/column to analyze.
 
     Returns:
         str: 
@@ -1173,53 +1226,75 @@ def infer_data_types(pd_series):
                  "Null-Unknown", "Boolean", "Integer", "Float", 
                  "Datetime", "String", or "Other".
     """
-    # Empty strings, including whitespaces changed to pd.NA
-    non_null_values = pd_series.replace(r'^\s+$', pd.NA, regex=True) 
-    # ignore nulls in determining the datatype of the column
-    non_null_values = non_null_values.dropna() 
+    is_pandas = isinstance(series, pd.Series)
+    is_spark_pandas = 'pyspark.pandas.series.Series' in str(type(series))
 
-    if non_null_values.empty:
-        return "Null-Unknown"
-
-    # Check for boolean
-    elif pd.api.types.is_bool_dtype(non_null_values):
-        return "Boolean"
-    
-    # Check for integers
-    elif pd.api.types.is_integer_dtype(non_null_values):
-        return "Integer"
-
-    # Check for floats
-    elif pd.api.types.is_float_dtype(non_null_values):
-        return "Float"
-
-    # Check for datetime
-    elif pd.api.types.is_datetime64_any_dtype(non_null_values):
-        return "Datetime"
-
-    # Check for strings
-    elif pd.api.types.is_string_dtype(non_null_values) or \
-        pd.api.types.is_categorical_dtype(non_null_values):
-        # Try converting to numeric before checking other types
-        try:
-            converted_numeric = pd.to_numeric(non_null_values)
-            if pd.api.types.is_bool_dtype(converted_numeric):
-                return "Boolean"
-            if pd.api.types.is_integer_dtype(converted_numeric):
-                return "Integer"
-            else:
-                return "Float"
-        except:
+    if is_pandas:
+        non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
+        if non_null_values.empty:
+            return "Null-Unknown"
+        elif pd.api.types.is_bool_dtype(non_null_values):
+            return "Boolean"
+        elif pd.api.types.is_integer_dtype(non_null_values):
+            return "Integer"
+        elif pd.api.types.is_float_dtype(non_null_values):
+            return "Float"
+        elif pd.api.types.is_datetime64_any_dtype(non_null_values):
+            return "Datetime"
+        elif pd.api.types.is_string_dtype(non_null_values) or pd.api.types.is_categorical_dtype(non_null_values):
             try:
-                dt = pd.to_datetime(non_null_values.astype(str),
-                                    infer_datetime_format=True)
-                return "Datetime"
+                converted_numeric = pd.to_numeric(non_null_values)
+                if pd.api.types.is_bool_dtype(converted_numeric):
+                    return "Boolean"
+                if pd.api.types.is_integer_dtype(converted_numeric):
+                    return "Integer"
+                else:
+                    return "Float"
             except:
-                return "String"
+                try:
+                    dt = pd.to_datetime(non_null_values.astype(str), infer_datetime_format=True)
+                    return "Datetime"
+                except:
+                    return "String"
+        else:
+            return "Other"
+    elif is_spark_pandas:
+        from pyspark.sql.functions import col
+        from pyspark.sql.types import BooleanType, IntegerType, FloatType, StringType, TimestampType
 
-    # Other data types
+        non_null_values = series.dropna().to_frame().to_spark()
+
+        if non_null_values.count() == 0:
+            return "Null-Unknown"
+        dtype = non_null_values.schema[0].dataType
+        if isinstance(dtype, BooleanType):
+            return "Boolean"
+        elif isinstance(dtype, IntegerType):
+            return "Integer"
+        elif isinstance(dtype, FloatType):
+            return "Float"
+        elif isinstance(dtype, TimestampType):
+            return "Datetime"
+        elif isinstance(dtype, StringType):
+            try:
+                converted_numeric = non_null_values.select(col(series.name).cast("double"))
+                if converted_numeric.filter(col(series.name).isNotNull()).count() > 0:
+                    return "Float"
+                else:
+                    return "Integer"
+            except:
+                try:
+                    dt = non_null_values.select(col(series.name).cast("timestamp"))
+                    if dt.filter(col(series.name).isNotNull()).count() > 0:
+                        return "Datetime"
+                    else:
+                        return "String"
+                except:
+                    return "String"
+        else:
+            return "Other"
     else:
-        return "Other"
+        raise ValueError("Input must be a pandas or spark.pandas Series.")
 
 #---------------------------------------------------------------------------------- 
 
@@ -1279,13 +1354,13 @@ def series_hasNull(series,
                    na_patterns=Config.NA_PATTERNS
                    ):
     """
-    Checks if a Pandas Series contains any null values or strings 
+    Checks if a Pandas or Spark Pandas Series contains any null values or strings 
     matching predefined patterns.
 
     Parameters:
     ----------
-    series : pd.Series
-        The Pandas Series to check for null values or strings.
+    series : pd.Series or ps.Series
+        The Series to check for null values or strings.
     na_values : list, optional
         List of values to consider as nulls 
         (default: Config.NA_VALUES).
@@ -1300,13 +1375,19 @@ def series_hasNull(series,
         matching predefined patterns, 
         False otherwise.
     """
+    is_pandas = isinstance(series, pd.Series)
+    is_spark_pandas = 'pyspark.pandas.series.Series' in str(type(series))
 
-    # Use apply to vectorize the check_na_value function
-    return series.apply(lambda x: check_na_value(x, na_values, na_patterns)).any()
+    if is_pandas:
+        return series.apply(lambda x: check_na_value(x, na_values, na_patterns)).any()
+    elif is_spark_pandas:
+        return series.apply(lambda x: check_na_value(x, na_values, na_patterns)).any().compute()
+    else:
+        raise ValueError("Input must be a pandas or spark.pandas Series.")
 
 #---------------------------------------------------------------------------------- 
 
-def get_numeric_range(pd_series, 
+def get_numeric_range(series, 
                       attribute,
                       na_val=None
                       ):
@@ -1315,8 +1396,8 @@ def get_numeric_range(pd_series,
     numerical and non-numerical cases.
 
     Parameters:
-        pd_series (pd.Series): 
-            The Pandas Series to process.
+        series (pd.Series or pyspark.pandas.Series): 
+            The Series to process.
         attribute (str): 
             The desired statistical attribute, either 'min' or 'max'.
         na_val : (Any, optional): 
@@ -1330,24 +1411,46 @@ def get_numeric_range(pd_series,
             value as an integer if possible; otherwise, returns it as a float. If the 
             Series is empty or non-numeric, returns (na_val).
     """
-    # Check for integers or float
-    _s = pd_series.replace(r'^\s+$', pd.NA, regex=True)
-    _s.fillna(pd.NA)  
-    try:
-        _s = pd.to_numeric(_s)
-        _s.fillna(pd.NA) 
-    except:
-        pass
+    is_pandas = isinstance(series, pd.Series)
+    is_spark_pandas = 'pyspark.pandas.series.Series' in str(type(series))
 
-    _s = _s.dropna()
+    if is_pandas:
+        _s = series.replace(r'^\s+$', pd.NA, regex=True)
+        _s.fillna(pd.NA)  
+        try:
+            _s = pd.to_numeric(_s)
+            _s.fillna(pd.NA) 
+        except:
+            pass
 
-    if not pd.api.types.is_numeric_dtype(_s):
-        return na_val  # Return `na_val` for non-numeric Series
+        _s = _s.dropna()
+
+        if not pd.api.types.is_numeric_dtype(_s):
+            return na_val  # Return `na_val` for non-numeric Series
+        
+        if attribute == 'min':
+            return int(_s.min()) if int(_s.min()) == float(_s.min()) else float(_s.min())
+        elif attribute == 'max':
+            return int(_s.max()) if int(_s.max()) == float(_s.max()) else float(_s.max())
     
-    if attribute == 'min':
-        return int(_s.min()) if int(_s.min()) == float(_s.min()) else float(_s.min())
-    elif attribute == 'max':
-        return int(_s.max()) if int(_s.max()) == float(_s.max()) else float(_s.max())
+    elif is_spark_pandas:
+        _s = series.replace(r'^\s+$', None, regex=True)
+        _s = _s.dropna()
+        try:
+            _s = _s.astype(float)
+        except:
+            return na_val
+
+        if not _s.dtype == float:
+            return na_val  # Return `na_val` for non-numeric Series
+        
+        if attribute == 'min':
+            return int(_s.min()) if int(_s.min()) == float(_s.min()) else float(_s.min())
+        elif attribute == 'max':
+            return int(_s.max()) if int(_s.max()) == float(_s.max()) else float(_s.max())
+    
+    else:
+        raise ValueError("Input must be a pandas or spark.pandas Series.")
 
 #---------------------------------------------------------------------------------- 
 
@@ -1358,12 +1461,12 @@ def build_data_dictionary(df,
                           na_val=None
                           ):
     """
-    Creates a detailed data dictionary from a Pandas DataFrame, 
+    Creates a detailed data dictionary from a Pandas or Spark DataFrame, 
     capturing key attributes for each column.
 
     Parameters:
     ----------
-    df (pandas.DataFrame): 
+    df (pandas.DataFrame or pyspark.pandas.DataFrame): 
         The DataFrame to analyze.
     max_unique_vals (int, optional): 
         The maximum number of unique values to include in the 
@@ -1406,6 +1509,12 @@ def build_data_dictionary(df,
         - required (bool): Indicates whether the column is required.
 
     """
+    is_pandas = isinstance(df, pd.DataFrame)
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
+
+    if not (is_pandas or is_spark_pandas):
+        raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
+
     data_dict = {}
 
     for col in df.columns:
@@ -1565,7 +1674,7 @@ def write_dataframes_to_xlsx(dataframes,
     ----------
         dataframes (dict):
             A dictionary of key-value pairs where keys are sheet
-            output names and values are pandas DataFrames.
+            output names and values are pandas or pyspark.pandas DataFrames.
         out_dir (str):
             Path to the output directory for the xlsx file.
         out_name (str):
@@ -1603,6 +1712,10 @@ def write_dataframes_to_xlsx(dataframes,
         for sheet_name in sheet_order:
             df = dataframes[sheet_name]
 
+            # Convert pyspark.pandas DataFrame to pandas DataFrame if needed
+            if 'pyspark.pandas.frame.DataFrame' in str(type(df)):
+                df = df.to_pandas()
+
             # Check if splitting is needed
             if df.shape[0] > MAX_ROWS_EXCEL or df.shape[1] > MAX_COLS_EXCEL:
                 chunk_size = MAX_ROWS_EXCEL
@@ -1612,7 +1725,6 @@ def write_dataframes_to_xlsx(dataframes,
                     chunk = df[i:i+chunk_size] 
 
                     # Combine the last two chunks if exceeding max rows
-                    # if current_sheet_rows + len(chunk) > MAX_ROWS_EXCEL:
                     new_sheet_name = f"{count}_{sheet_name}"
                     chunk.to_excel(writer,
                                     sheet_name=new_sheet_name,
@@ -1635,7 +1747,6 @@ def write_dataframes_to_xlsx(dataframes,
     except:
         pass
     return output_path
-
 				     
 #---------------------------------------------------------------------------------- 
 
@@ -2175,7 +2286,7 @@ def value_errors_nulls(df,
 
     Parameters:
     ----------
-        df : pd.DataFrame
+        df : pd.DataFrame or ps.DataFrame
             The DataFrame to check.
         column_name : str
             The name of the column to check for null values.
@@ -2188,7 +2299,16 @@ def value_errors_nulls(df,
             A list of dictionaries, each containing 'Sheet Row', 'Error Type',
             'Column Name', and the unique column value (if provided).
     """
-    null_mask = df[column_name].isnull()  # Create a boolean mask of null values
+    is_pandas = isinstance(df, pd.DataFrame)
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
+
+    if not (is_pandas or is_spark_pandas):
+        raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
+
+    if is_pandas:
+        null_mask = df[column_name].isnull()  # Create a boolean mask of null values
+    else:
+        null_mask = df[column_name].isna()  # Create a boolean mask of null values for spark.pandas
 
     results = []
     for row_index, row in df[null_mask].iterrows():
@@ -2205,6 +2325,7 @@ def value_errors_nulls(df,
     return results
 
 #---------------------------------------------------------------------------------- 
+
 def value_errors_duplicates(df,
                             column_name,
                             unique_column=None
@@ -2216,7 +2337,7 @@ def value_errors_duplicates(df,
 
     Parameters:
     ----------
-    df : pd.DataFrame
+    df : pd.DataFrame or pyspark.pandas.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check for duplicates.
@@ -2230,26 +2351,51 @@ def value_errors_duplicates(df,
         'Column Name', the unique column value (if provided), and the actual
         value from the 'column_name'.
     """
-    # Create a boolean mask of duplicates
-    null_mask = df[column_name].isnull()
-    duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
+    is_pandas = isinstance(df, pd.DataFrame)
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
+
+    if not (is_pandas or is_spark_pandas):
+        raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
     results = []
-    for row_index, row in df[duplicate_mask].iterrows():
-        output_dict = {
-            'Sheet Row': row_index + 2,
-            'Error Type': 'Duplicate Value',
-            'Column Name': column_name,
-            'Error Value': row[column_name],
-        }
-        if unique_column and unique_column in df.columns:
-            output_dict["Lookup Column"] = unique_column
-            output_dict["Lookup Value"] = row[unique_column]
-        results.append(output_dict)
+
+    if is_pandas:
+        # Create a boolean mask of duplicates
+        null_mask = df[column_name].isnull()
+        duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
+
+        for row_index, row in df[duplicate_mask].iterrows():
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': 'Duplicate Value',
+                'Column Name': column_name,
+                'Error Value': row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
+    elif is_spark_pandas:
+        # Create a boolean mask of duplicates
+        null_mask = df[column_name].isnull()
+        duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
+
+        for row_index, row in df[duplicate_mask].iterrows():
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': 'Duplicate Value',
+                'Column Name': column_name,
+                'Error Value': row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
 
     return results
 
 #---------------------------------------------------------------------------------- 
+
 def value_errors_unallowed(df,
                            column_name, 
                            allowed_values,
@@ -2262,7 +2408,7 @@ def value_errors_unallowed(df,
 
     Parameters:
     ----------
-    df : pd.DataFrame
+    df : pd.DataFrame or pyspark.pandas.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2278,30 +2424,60 @@ def value_errors_unallowed(df,
         'Error Type', 'Column Name', the unique column value 
         (if provided), and the actual value from the 'column_name'.
     """
-    # Get the DataFrame column's data type
-    column_dtype = df[column_name].dtype
-    # Ensure the same data type for comparison
-    allowed_values = pd.Series(allowed_values).astype(column_dtype)
-    # Create a boolean mask
-    null_mask = df[column_name].isnull()
-    not_allowed_mask = ~df[column_name].isin(allowed_values) & ~null_mask
+    is_pandas = isinstance(df, pd.DataFrame)
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
 
-    results = []
-    for row_index, row in df[not_allowed_mask].iterrows():
-        output_dict = {
-            'Sheet Row': row_index + 2,
-            'Error Type': 'Unallowed Value',
-            'Column Name': column_name,
-            'Error Value': row[column_name],
-        }
-        if unique_column and unique_column in df.columns:
-            output_dict["Lookup Column"] = unique_column
-            output_dict["Lookup Value"] = row[unique_column]
-        results.append(output_dict)
+    if is_pandas:
+        # Get the DataFrame column's data type
+        column_dtype = df[column_name].dtype
+        # Ensure the same data type for comparison
+        allowed_values = pd.Series(allowed_values).astype(column_dtype)
+        # Create a boolean mask
+        null_mask = df[column_name].isnull()
+        not_allowed_mask = ~df[column_name].isin(allowed_values) & ~null_mask
 
-    return results
+        results = []
+        for row_index, row in df[not_allowed_mask].iterrows():
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': 'Unallowed Value',
+                'Column Name': column_name,
+                'Error Value': row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
+
+        return results
+
+    elif is_spark_pandas:
+        # Ensure the same data type for comparison
+        allowed_values = ps.Series(allowed_values).astype(df[column_name].dtype)
+        # Create a boolean mask
+        null_mask = df[column_name].isnull()
+        not_allowed_mask = ~df[column_name].isin(allowed_values) & ~null_mask
+
+        results = []
+        for row_index, row in df[not_allowed_mask].iterrows():
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': 'Unallowed Value',
+                'Column Name': column_name,
+                'Error Value': row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
+
+        return results
+
+    else:
+        raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
 #---------------------------------------------------------------------------------- 
+
 def value_errors_length(df,
                         column_name,
                         max_length,
@@ -2314,7 +2490,7 @@ def value_errors_length(df,
 
     Parameters:
     ----------
-    df : pd.DataFrame
+    df : pd.DataFrame or pyspark.pandas.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2332,31 +2508,60 @@ def value_errors_length(df,
         Returns an empty list if all values can be converted to 
         strings within the limit.
     """
-    try:
-        # Attempt to convert all values to strings
-        #str_values = df[column_name].fillna('').astype(str)
-        str_values = df[column_name].astype(str, errors='ignore').fillna('')
-    except ValueError:
-        return []  # Conversion failed, handle exceeding values
+    is_pandas = isinstance(df, pd.DataFrame)
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
 
-    exceeding_mask = str_values.str.len() > max_length
+    if is_pandas:
+        try:
+            str_values = df[column_name].astype(str, errors='ignore').fillna('')
+        except ValueError:
+            return []  # Conversion failed, handle exceeding values
 
-    results = []
-    for row_index, row in df[exceeding_mask].iterrows():
-        output_dict = {
-            'Sheet Row': row_index + 2,
-            'Error Type': f'Value Exceeds Max Length ({max_length})',
-            'Column Name': column_name,
-            'Error Value': row[column_name],
-        }
-        if unique_column and unique_column in df.columns:
-            output_dict["Lookup Column"] = unique_column
-            output_dict["Lookup Value"] = row[unique_column]
-        results.append(output_dict)
+        exceeding_mask = str_values.str.len() > max_length
 
-    return results
+        results = []
+        for row_index, row in df[exceeding_mask].iterrows():
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': f'Value Exceeds Max Length ({max_length})',
+                'Column Name': column_name,
+                'Error Value': row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
+
+        return results
+
+    elif is_spark_pandas:
+        try:
+            str_values = df[column_name].astype(str).fillna('')
+        except ValueError:
+            return []  # Conversion failed, handle exceeding values
+
+        exceeding_mask = str_values.str.len() > max_length
+
+        results = []
+        for row_index, row in df[exceeding_mask].iterrows():
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': f'Value Exceeds Max Length ({max_length})',
+                'Column Name': column_name,
+                'Error Value': row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
+
+        return results
+
+    else:
+        raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
 #---------------------------------------------------------------------------------- 
+
 def value_errors_out_of_range(df,
                               column_name,
                               test_type, 
@@ -2369,7 +2574,7 @@ def value_errors_out_of_range(df,
 
     Parameters:
     ----------
-    df : pd.DataFrame
+    df : pd.DataFrame or ps.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2390,20 +2595,49 @@ def value_errors_out_of_range(df,
 
     results = []
 
-    # Check for integers or float
-    numeric_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
-    numeric_column.fillna(pd.NA)  
-    try:
-        numeric_column = pd.to_numeric(numeric_column)
-        numeric_column.fillna(pd.NA) 
-    except:
-        pass
+    is_pandas = isinstance(df, pd.DataFrame)
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
+
+    if not (is_pandas or is_spark_pandas):
+        raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
     if test_type not in ("min", "max"):
-        raise ValueError("test_type must be either 'min' or 'max")
+        raise ValueError("test_type must be either 'min' or 'max'")
 
-    if pd.api.types.is_numeric_dtype(numeric_column):
-        error_type = None
+    if is_pandas:
+        numeric_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
+        numeric_column.fillna(pd.NA)  
+        try:
+            numeric_column = pd.to_numeric(numeric_column)
+            numeric_column.fillna(pd.NA) 
+        except:
+            pass
+
+        if pd.api.types.is_numeric_dtype(numeric_column):
+            error_type = None
+            if test_type == "min":
+                mask = numeric_column < value
+                error_type = f"Below Minimum Allowed Value ({value})"
+            elif test_type == "max":
+                mask = numeric_column > value
+                error_type = f"Exceeds Maximum Allowed Value ({value})"
+
+            for row_index, row in df[mask].iterrows():
+                if mask[row_index]:
+                    output_dict = {
+                        "Sheet Row": row_index + 2,
+                        "Error Type": error_type,
+                        "Column Name": column_name,
+                        "Error Value": row[column_name],
+                    }
+                    if unique_column and unique_column in df.columns:
+                        output_dict["Lookup Column"] = unique_column
+                        output_dict["Lookup Value"] = row[unique_column]
+                    results.append(output_dict)
+    elif is_spark_pandas:
+        numeric_column = df[column_name].replace(r'^\s+$', None, regex=True)
+        numeric_column = numeric_column.astype(float)
+
         if test_type == "min":
             mask = numeric_column < value
             error_type = f"Below Minimum Allowed Value ({value})"
@@ -2411,22 +2645,23 @@ def value_errors_out_of_range(df,
             mask = numeric_column > value
             error_type = f"Exceeds Maximum Allowed Value ({value})"
 
-        for row_index, row in df[mask].iterrows():
-            # Check if the row falls outside the range (mask is True)
-            if mask[row_index]:
-                output_dict = {
-                    "Sheet Row": row_index + 2,
-                    "Error Type": error_type,
-                    "Column Name": column_name,
-                    "Error Value": row[column_name],
-                }
-                if unique_column and unique_column in df.columns:
-                    output_dict["Lookup Column"] = unique_column
-                    output_dict["Lookup Value"] = row[unique_column]
-                results.append(output_dict)
+        error_df = df[mask]
+        for row_index, row in error_df.iterrows():
+            output_dict = {
+                "Sheet Row": row_index + 2,
+                "Error Type": error_type,
+                "Column Name": column_name,
+                "Error Value": row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
+
     return results
 
 #---------------------------------------------------------------------------------- 
+
 def value_errors_regex_mismatches(df,
                                   column_name,
                                   regex_pattern,
@@ -2438,7 +2673,7 @@ def value_errors_regex_mismatches(df,
 
     Parameters:
     ----------
-    df : pd.DataFrame
+    df : pd.DataFrame or ps.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2454,30 +2689,62 @@ def value_errors_regex_mismatches(df,
         'Error Type', 'Column Name', the unique column value 
         (if provided), and the actual value from the 'column_name'.
     """
-    # Identify non-null values
-    non_null_mask = df[column_name].notnull()  
-    pattern_match = df.loc[non_null_mask, 
-                           column_name].astype(str).str.match(regex_pattern)
-    # Invert to get mismatches
-    mismatch_mask = ~pattern_match  
+    is_pandas = isinstance(df, pd.DataFrame)
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
 
-    results = []
-    # Filter for mismatches
-    for row_index, row in df.loc[non_null_mask & mismatch_mask].iterrows():  
-        output_dict = {
-            'Sheet Row': row_index + 2,
-            'Error Type': 'Invalid Value Formatting',
-            'Column Name': column_name,
-            'Error Value': row[column_name]
-        }
-        if unique_column and unique_column in df.columns:
-            output_dict["Lookup Column"] = unique_column
-            output_dict["Lookup Value"] = row[unique_column]
-        results.append(output_dict)
+    if is_pandas:
+        # Identify non-null values
+        non_null_mask = df[column_name].notnull()  
+        pattern_match = df.loc[non_null_mask, 
+                               column_name].astype(str).str.match(regex_pattern)
+        # Invert to get mismatches
+        mismatch_mask = ~pattern_match  
 
-    return results
+        results = []
+        # Filter for mismatches
+        for row_index, row in df.loc[non_null_mask & mismatch_mask].iterrows():  
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': 'Invalid Value Formatting',
+                'Column Name': column_name,
+                'Error Value': row[column_name]
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
+
+        return results
+
+    elif is_spark_pandas:
+        # Identify non-null values
+        non_null_mask = df[column_name].notnull()  
+        pattern_match = df.loc[non_null_mask, 
+                               column_name].astype(str).str.match(regex_pattern)
+        # Invert to get mismatches
+        mismatch_mask = ~pattern_match  
+
+        results = []
+        # Filter for mismatches
+        for row_index, row in df.loc[non_null_mask & mismatch_mask].iterrows():  
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': 'Invalid Value Formatting',
+                'Column Name': column_name,
+                'Error Value': row[column_name]
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
+
+        return results
+
+    else:
+        raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
 #---------------------------------------------------------------------------------- 
+
 def get_value_errors(dataset_path,
                      schema_errors,
                      data_dict,
@@ -2615,48 +2882,89 @@ def get_value_errors(dataset_path,
 
 #---------------------------------------------------------------------------------- 
 
-def load_files_to_sqlite(files, include_tables=[]):
+def load_files_to_sql(files, include_tables=[], use_spark=True):
     """
-    Loads CSV files into an in-memory SQLite database.
+    Loads CSV files into Spark SQL tables if use_spark is True, otherwise into an in-memory SQLite database.
 
     Parameters
     ----------
     files : list of str, required
         List of paths to spreadsheet files. Default is an empty list.
+    include_tables : list of str, optional
+        List of table names to include. Default is an empty list.
+    use_spark : bool, optional
+        Flag to determine whether to use Spark for loading files. If True, uses Spark; otherwise, uses SQLite. Default is True.
 
     Returns
     -------
     tuple
-        A tuple containing the SQLite3 connection object and the list of table names.
+        A tuple containing the connection object (None if Spark is used) and the list of table names.
     """
 
-    # Create an in-memory SQLite database connection
-    conn = connect(':memory:')
     table_names = []
 
-    for f in files:
-        # Get the base name of the file without extension
-        base_name = os.path.splitext(os.path.basename(f))[0]
-        
-        # Skip the file if its base name is not in the include_tables list
-        if bool(include_tables) and base_name not in include_tables:
-            continue
-        
-        # Read the file into a dictionary of DataFrames
-        dfs = read_csv_or_excel_to_df(f)
-        
-        for tn, df in dfs.items():
-            # Skip the table if its name is not in the include_tables list
-            if bool(include_tables) and tn not in include_tables:
+    try:
+        spark_version = spark.version
+        use_spark = True
+        print(f"Creating tables in spark with version: {spark_version}")
+    except NameError:
+        use_spark = False
+        print(f"Creating tables in memory with sqlite")
+
+    if use_spark:
+        for f in files:
+            # Get the base name of the file without extension
+            base_name = os.path.splitext(os.path.basename(f))[0]
+            
+            # Skip the file if its base name is not in the include_tables list
+            if bool(include_tables) and base_name not in include_tables:
                 continue
             
-            table_names.append(tn)
-            # Create a table in the SQLite3 database for each DataFrame
-            df.to_sql(tn, con=conn, if_exists="replace", index=False)
-            # Clean up the DataFrame from memory
-            del df
+            # Read the file into a dictionary of DataFrames
+            dfs = sv.read_csv_or_excel_to_df(f)
+            
+            for tn, df in dfs.items():
+                # Skip the table if its name is not in the include_tables list
+                if bool(include_tables) and tn not in include_tables:
+                    continue
+                
+                table_names.append(tn)
+                # Convert pandas DataFrame to pyspark.pandas DataFrame and create a Spark SQL table
+                ps_df = ps.from_pandas(df)
+                ps_df.to_spark().createOrReplaceTempView(tn)
+                # Clean up the DataFrame from memory
+                del df
 
-    return conn, table_names
+        return 'pyspark_pandas', table_names
+
+    else:
+        # Create an in-memory SQLite database connection
+        conn = connect(':memory:')
+
+        for f in files:
+            # Get the base name of the file without extension
+            base_name = os.path.splitext(os.path.basename(f))[0]
+            
+            # Skip the file if its base name is not in the include_tables list
+            if bool(include_tables) and base_name not in include_tables:
+                continue
+            
+            # Read the file into a dictionary of DataFrames
+            dfs = sv.read_csv_or_excel_to_df(f)
+            
+            for tn, df in dfs.items():
+                # Skip the table if its name is not in the include_tables list
+                if bool(include_tables) and tn not in include_tables:
+                    continue
+                
+                table_names.append(tn)
+                # Create a table in the SQLite3 database for each DataFrame
+                df.to_sql(tn, con=conn, if_exists="replace", index=False)
+                # Clean up the DataFrame from memory
+                del df
+
+        return conn, table_names
+    
 #---------------------------------------------------------------------------------- 
 
 def extract_primary_table(sql_statement):
@@ -2673,7 +2981,7 @@ def extract_primary_table(sql_statement):
     str
         The primary table name if found, otherwise None.
     """
-    parsed = parse(sql_statement)
+    parsed = sqlparse.parse(sql_statement)
     for token in parsed[0].tokens:
         if token.ttype is None and token.get_real_name():
             return token.get_real_name()
@@ -2681,40 +2989,133 @@ def extract_primary_table(sql_statement):
 
 #---------------------------------------------------------------------------------- 
 
-def extract_sql_table_refs(sql_statement):
-    """
-    Extracts all table names from an SQL statement using sqlparse.
+def extract_all_table_names(sql_statement):
+    parsed = sqlparse.parse(sql_statement)
+    stmt = parsed[0]
+    tables = []
 
-    Parameters
-    ----------
-    sql_statement : str
-        The SQL statement to parse.
+    def is_subselect(parsed):
+        if not parsed.is_group:
+            return False
+        for item in parsed.tokens:
+            if item.ttype is sqlparse.tokens.DML and item.value.upper() == 'SELECT':
+                return True
+        return False
 
-    Returns
-    -------
-    list
-        A list of table names found in the SQL statement.
-    """
-    parsed = parse(sql_statement)
-    table_names = []
-    
-    for token in parsed[0].tokens:
-        # Check if the token is not a keyword or punctuation and has a real name (table name)
-        if token.ttype is None and token.get_real_name():
-            table_names.append(token.get_real_name())
-        # If the token is a group (e.g., subquery), iterate through its sub-tokens
-        elif token.is_group:
-            for sub_token in token.tokens:
-                # Check if the sub-token is not a keyword or punctuation and has a real name (table name)
-                if sub_token.ttype is None and sub_token.get_real_name():
-                    table_names.append(sub_token.get_real_name())
-    
-    # Return a list of unique table names
-    return list(set(table_names))
+    def extract_from_part(parsed):
+        from_seen = False
+        for item in parsed.tokens:
+            if from_seen:
+                if is_subselect(item):
+                    extract_from_part(item)
+                elif item.ttype is sqlparse.tokens.Keyword:
+                    return
+                elif item.ttype is None and isinstance(item, sqlparse.sql.IdentifierList):
+                    for identifier in item.get_identifiers():
+                        tables.append(identifier.get_real_name())
+                elif item.ttype is None and isinstance(item, sqlparse.sql.Identifier):
+                    tables.append(item.get_real_name())
+            elif item.ttype is sqlparse.tokens.Keyword and item.value.upper() == 'FROM':
+                from_seen = True
+
+    def extract_tables(parsed):
+        for item in parsed.tokens:
+            if item.is_group:
+                extract_tables(item)
+            elif item.ttype is sqlparse.tokens.Keyword and item.value.upper() == 'FROM':
+                extract_from_part(parsed)
+
+    extract_tables(stmt)
+    return list(set(tables))
 
 #---------------------------------------------------------------------------------- 
 
-def get_rows_with_condition(tables, sql_statement, conn, error_message, error_level='error'):
+def get_rows_with_condition_spark(tables, sql_statement, error_message, error_level='error'):
+    """
+    Returns rows with a unique ID column value where a condition is true in the first table listed in an SQL statement.
+
+    Parameters
+    ----------
+    tables : list of str
+        List of table names available in Spark.
+    sql_statement : str
+        The SQL statement to execute.
+    error_message : str
+        The error message to include in the results if the condition is met.
+    error_level : str, optional
+        The level of the error (default is 'error').
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the primary table name, SQL error query, lookup column, and lookup value.
+    """
+    
+    # Extract the primary table name from the SQL statement
+    primary_table = extract_primary_table(sql_statement)
+
+    # Get the DataFrame for the primary table
+    primary_df = spark.table(primary_table)
+
+    # Convert to pyspark.pandas DataFrame
+    primary_pdf = primary_df.pandas_api()
+
+    # Get the best unique ID column from the primary table
+    unique_column = get_best_uid_column(primary_pdf)
+
+    # Register the primary table as a temporary view
+    primary_df.createOrReplaceTempView("primary_table")
+
+    # Modify the SQL statement to select the unique ID column
+    modified_sql = f"""
+                    SELECT 
+                        pt.{unique_column}
+                    FROM ({sql_statement}) AS sq
+                    LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
+                    """
+
+    results = []
+    try:
+        # Execute the modified SQL statement
+        result_df = spark.sql(modified_sql).toPandas()
+
+        if result_df.empty:
+            # Append error information if no rows are returned
+            results.append({
+                "Primary_table"     : primary_table,
+                "SQL Error Query"   : sql_statement,
+                "Message"           : 'OK-No rows returned',
+                "Level"             : 'Good',
+                "Lookup Column"     : '',
+                "Lookup Value"      : ''
+            })
+        else:
+            # Prepare the results for each row in the result DataFrame
+            for row_index, row in result_df.iterrows():
+                results.append({
+                    "Primary_table"     : primary_table,
+                    "SQL Error Query"   : sql_statement,
+                    "Message"           : error_message,
+                    "Level"             : error_level,
+                    "Lookup Column"     : unique_column,
+                    "Lookup Value"      : row[unique_column]
+                })
+    except Exception as e:
+        # Append error information if the SQL execution fails
+        results.append({
+            "Primary_table"     : primary_table,
+            "SQL Error Query"   : sql_statement,
+            "Message"           : f"Query SQL failed: {str(e)}",
+            "Level"             : 'Error',
+            "Lookup Column"     : '',
+            "Lookup Value"      : ''
+        })
+
+    return pd.DataFrame(results)
+
+#---------------------------------------------------------------------------------- 
+
+def get_rows_with_condition_sqlite(tables, sql_statement, conn, error_message, error_level='error'):
     """
     Returns rows with a unique ID column value where a condition is true in the first table listed in an SQL statement.
 
@@ -2780,7 +3181,7 @@ def get_rows_with_condition(tables, sql_statement, conn, error_message, error_le
             results.append({
                 "Primary_table"     : primary_table,
                 "SQL Error Query"   : sql_statement,
-                "Message"           : 'OK',
+                "Message"           : 'OK-No rows returned',
                 "Level"             : 'Good',
                 "Lookup Column"     : '',
                 "Lookup Value"      : ''
@@ -2835,11 +3236,12 @@ def find_errors_with_sql(rules_df, files):
     # Extract table references from each SQL rule
     for index, row in rules_df.iterrows():
         sql_statement = row['SQL Error Query']
-        sql_ref_tables.extend(extract_sql_table_refs(sql_statement)) 
-
+        sql_ref_tables.append(extract_primary_table(sql_statement))
+        sql_ref_tables.extend(extract_all_table_names(sql_statement)) 
+    sql_ref_tables = list(set(sql_ref_tables))
     # Load CSV files into an in-memory SQLite database, including only the referenced tables
-    conn, tables = load_files_to_sqlite(files, 
-                                        include_tables=list(set((sql_ref_tables))))
+    conn, tables = load_files_to_sql(files, 
+                                    include_tables=list(sql_ref_tables))
 
     # Iterate over each rule in the rules DataFrame
     for index, row in rules_df.iterrows():
@@ -2847,8 +3249,12 @@ def find_errors_with_sql(rules_df, files):
         error_level = str(row['Level'])
         error_message = str(row['Message'])
         
-        # Get rows that meet the condition specified in the SQL statement
-        error_rows = get_rows_with_condition(tables, sql_statement, error_message, error_level, conn)
+        if conn ==  'pyspark_pandas':
+            # Get rows that meet the condition specified in the SQL statement
+            error_rows = get_rows_with_condition_spark(tables, sql_statement, error_message, error_level)
+        else:
+            # Get rows that meet the condition specified in the SQL statement
+            error_rows = get_rows_with_condition_sqlite(tables, sql_statement, error_message, error_level, conn)
         
         # If there are any error rows, concatenate them to the errors DataFrame
         if not error_rows.empty:
@@ -2954,24 +3360,6 @@ def validate_dataset(dataset_path,
             for sheet, errs in value_errors[uid].items():
                 results[uid]["results"][sheet]["value_errors"]=errs
 
-     #----------------
-        # check to see if there is a data integrity rules sheet
-        ddfs = read_csv_or_excel_to_df(data_dict_path)
-        if 'Data_Integrity' in ddfs.keys():
-            di_rules_df = ddfs['Data_Integrity']
-            errors_df = find_errors_with_sql(rules_df, dataset_path)
-
-            if len(errors_df) > 0:
-                # Convert errors_df to a list of JSON objects
-                errors_json_list = errors_df.to_dict(orient='records')
-
-                summary_df = errors_df.groupby(['Primary_table', 'Message']).size()
-                results[uid]["results"]['Integrity Overview']
-
-                # Iterate over the list of JSON objects
-                for r in errors_json_list:
-                    # Process each error JSON object
-                    results[uid]["results"][r['primary_table']]["integrity_errors"]=r
     #----------------
     # convert the dictionary to a formatted JSON string & output the results
 
