@@ -13,6 +13,7 @@ from dateutil import parser as dt_parser    # Library for parsing dates from str
 import pandas as pd                         # Library for data manipulation and analysis
 import numpy as np                          # Library for numerical operations
 try:
+    import pyspark
     import pyspark.pandas as ps             # Library for data manipulation and analysis with Spark
 except ImportError:
     display("pyspark.pandas is not available in the session.")
