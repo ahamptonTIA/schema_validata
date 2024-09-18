@@ -675,8 +675,11 @@ def to_dbfs_path(path):
         DataBricks dbfs file storage path
     """        
     if path.startswith(r'/mnt'):
-        path = f"{r'dbfs:'}{path}"        
-    return re.sub(r'^(/dbfs)', r'dbfs:', path)   
+        return path
+    if path.startswith(r'dbfs:'):
+        return re.sub(r'^(dbfs:)','', path)        
+    if path.startswith(r'/dbfs'): 
+        return re.sub(r'^(/dbfs)','', path)        
 #----------------------------------------------------------------------------------   
 def read_spreadsheets(file_path, 
                       sheet_name=None, 
