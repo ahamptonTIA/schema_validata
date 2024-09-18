@@ -1,4 +1,5 @@
 import os                                   # Standard library for interacting with the operating system
+import sys
 import shutil                               # Standard library for high-level file operations
 import json                                 # Standard library for working with JSON objects
 import ast                                  # Standard library for parsing and processing Python abstract syntax trees
