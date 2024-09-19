@@ -977,7 +977,7 @@ def identify_leading_zeros(df_col):
 
     Parameters:
     ----------
-    df_col : pandas.Series or pyspark.pandas.Series
+    df_col : pandas.Series or numpy.ndarray
         Column of a DataFrame.
 
     Returns:
@@ -985,11 +985,11 @@ def identify_leading_zeros(df_col):
     bool
         True if potential leading zeros are found, False otherwise.
     """
-    if not isinstance(df_col, (pd.Series, ps.Series)):
-        raise ValueError("Input must be a pandas or spark.pandas Series.")
+    if not isinstance(df_col, (pd.Series, np.ndarray)):
+        raise ValueError("Input must be a pandas Series or numpy ndarray.")
 
-    if isinstance(df_col, ps.Series):
-        df_col = df_col.to_pandas()
+    if isinstance(df_col, np.ndarray):
+        df_col = pd.Series(df_col)
 
     if df_col.dtype == 'object':
         return df_col.dropna().str.startswith("0").any()
@@ -1005,7 +1005,7 @@ def check_all_int(df_col):
 
     Parameters:
     ----------
-    df_col : pandas.Series or pyspark.pandas.Series
+    df_col : pandas.Series or numpy.ndarray
         Column of a DataFrame.
 
     Returns:
@@ -1013,8 +1013,8 @@ def check_all_int(df_col):
     type
         Data type to use for the column.
     """
-    if isinstance(df_col, ps.Series):
-        df_col = df_col.to_pandas()
+    if isinstance(df_col, np.ndarray):
+        df_col = pd.Series(df_col)
 
     _s = df_col.dropna()
     try:
@@ -1029,7 +1029,7 @@ def check_all_int(df_col):
         return 'Int64' if all_ints else 'Float64'
     else:
         return str
-
+    
 #---------------------------------------------------------------------------------- 
 
 def read_spreadsheet_with_params(file_path, 
