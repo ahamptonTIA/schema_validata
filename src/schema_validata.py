@@ -1063,6 +1063,7 @@ def read_spreadsheet_with_params(file_path,
                              na_values=na_values)
 
 #----------------------------------------------------------------------------------
+
 def read_df_with_optimal_dtypes(file_path,
                                 sheet_name=None,
                                 rm_newlines=True, 
@@ -1137,6 +1138,9 @@ def read_df_with_optimal_dtypes(file_path,
     for col in df.columns:
         non_null_values = df[col].dropna()
         
+        if use_spark_pandas:
+            non_null_values = non_null_values.to_numpy()
+
         if non_null_values.empty:
             dtypes[col] = object
         elif identify_leading_zeros(non_null_values):
