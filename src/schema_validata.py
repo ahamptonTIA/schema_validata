@@ -693,6 +693,7 @@ def read_spreadsheets(file_path,
                            dtype=dtype, 
                            na_values=na_values)
     elif ext == ".csv":
+        encoding=detect_file_encoding(file_path)
         df = pd.read_csv(file_path, 
                          dtype=dtype, 
                          na_values=na_values,
