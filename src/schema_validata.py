@@ -709,7 +709,7 @@ def read_spreadsheets(file_path,
     # Check if pyspark.pandas is available
     use_spark_pandas = 'pyspark.pandas' in sys.modules
     if use_spark_pandas:
-        df = ps.from_pandas(df)
+        df = ps.DataFrame(df)
 
     return df
 
@@ -786,7 +786,8 @@ def xlsx_tabs_to_pd_dataframes(file_path,
 
         # Convert to pyspark.pandas DataFrame if available
         if use_spark_pandas:
-            df = ps.from_pandas(df)
+            df = ps.DataFrame(df)
+            
 
         # Set key for CSV files to ensure consistent dictionary keys
         key = base_name if ext == '.csv' else sheet_name
@@ -2588,7 +2589,7 @@ def load_files_to_sql(files, include_tables=[], use_spark=True):
                 table_names.append(tn)
                 # Convert pandas DataFrame to pyspark.pandas DataFrame and create a Spark SQL table
                 if isinstance(df, pd.DataFrame):
-                    ps_df = ps.from_pandas(df)
+                    ps_df = ps.DataFrame(df)
                 else:
                     ps_df = df
                 ps_df.to_spark().createOrReplaceTempView(tn)
