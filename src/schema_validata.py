@@ -1141,7 +1141,7 @@ def read_df_with_optimal_dtypes(file_path,
         if use_spark_pandas:
             non_null_values = non_null_values.to_numpy()
 
-        if non_null_values.empty:
+        if len(non_null_values) == 0:
             dtypes[col] = object
         elif identify_leading_zeros(non_null_values):
             dtypes[col] = str  # Preserve leading zeros
