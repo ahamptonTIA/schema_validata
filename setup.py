@@ -34,6 +34,8 @@ setuptools.setup(
                         'pandas>=1.1.0,<2.1.0',   
                         'numpy<1.25,>=1.16.0',
                         'openpyxl',
+                        'sqlparse', 
+                        'sqlite3'
 
                     ]
     )
