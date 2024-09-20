@@ -2217,7 +2217,8 @@ def value_errors_nulls(df, column_name, unique_column=None):
     if isinstance(df, ps.DataFrame):
         null_mask = df[column_name].isnull()
         filtered_df = df[null_mask]
-        results = filtered_df.apply(lambda row: {
+        if filtered_df.isEmpty(): return pd.Series([])  # Return an empty Series if filtered_df is empty
+        results = filtered_df.applyInPandas(lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': 'Null Value',
             'Column Name': column_name,
@@ -2273,7 +2274,8 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         null_mask = df[column_name].isnull()
         duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
         filtered_df = df[duplicate_mask]
-        results = filtered_df.apply(lambda row: {
+        if filtered_df.isEmpty(): return pd.Series([])  # Return an empty Series if filtered_df is empty
+        results = filtered_df.applyInPandas(lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': 'Duplicate Value',
             'Column Name': column_name,
@@ -2325,12 +2327,13 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
-
+    
     if isinstance(df, ps.DataFrame):
         null_mask = df[column_name].isnull()
         allowed_mask = df[column_name].isin(allowed_values)
         filtered_df = df[~allowed_mask & ~null_mask]
-        results = filtered_df.apply(lambda row: {
+        if filtered_df.isEmpty(): return pd.Series([])  # Return an empty Series if filtered_df is empty
+        results = filtered_df.applyInPandas(lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': 'Unallowed Value',
             'Column Name': column_name,
@@ -2390,7 +2393,8 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
         str_values = df[column_name].astype(str, errors='ignore').fillna('')
         exceeding_mask = str_values.str.len() > max_length
         filtered_df = df[exceeding_mask]
-        results = filtered_df.apply(lambda row: {
+        if filtered_df.isEmpty(): return pd.Series([])  # Return an empty Series if filtered_df is empty
+        results = filtered_df.applyInPandas(lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': f'Value Exceeds Max Length ({max_length})',
             'Column Name': column_name,
@@ -2398,6 +2402,8 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
             'Lookup Column': unique_column if unique_column in df.columns else None,
             'Lookup Value': row[unique_column] if unique_column in df.columns else None,
         }, axis=1)
+
+
     else:
         try:
             str_values = df[column_name].astype(str, errors='ignore').fillna('')
@@ -2463,6 +2469,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
             error_type = f"Exceeds Maximum Allowed Value ({value})"
 
         filtered_df = df.where(mask)
+        if filtered_df.isEmpty(): return pd.Series([])  # Return an empty Series if filtered_df is empty
         results = filtered_df.applyInPandas(
             lambda row: {
                 "Sheet Row": row.name + 2,
@@ -2538,6 +2545,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
         withColumn("match", F.col(column_name).like(regex_pattern))  # Use like for PySpark.pandas compatibility
     mismatch_mask = ~F.col("match")
     filtered_df = df.join(pattern_match.select(F.col("match")), on=column_name, how="inner").where(mismatch_mask)
+    if filtered_df.isEmpty(): return pd.Series([])  # Return an empty Series if filtered_df is empty
     results = filtered_df.applyInPandas(
         lambda row: {
             'Sheet Row': row.name + 2,
