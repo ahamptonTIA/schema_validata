@@ -2484,7 +2484,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
   """
 
   if isinstance(df, ps.DataFrame):
-      numeric_column = df.select(column_name).cast("double")  # Cast to numeric for comparison
+      numeric_column = df[column_name].astype(float, errors='coerce')
 
       if test_type not in ("min", "max"):
           raise ValueError("test_type must be either 'min' or 'max'")
