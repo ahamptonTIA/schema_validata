@@ -831,50 +831,52 @@ def data_dict_to_json(data_dict_file,
         json_string (str):
         Formatted JSON string representing the processed data dictionary.
     """
-    # try:
-    # Read the xlxs data dictionary file, convert each tab into a dataframe, 
-    # Return a dictionary {tabName: dataframe}
-    dfs = xlsx_tabs_to_pd_dataframes(data_dict_file,
-                                        rm_newlines=True, 
-                                        replace_char='',
-                                        infer=True,
-                                        na_values=na_values,
-                                        na_patterns=na_patterns)
+    try:
+        # Read the xlxs data dictionary file, convert each tab into a dataframe, 
+        # Return a dictionary {tabName: dataframe}
+        dfs = xlsx_tabs_to_pd_dataframes(data_dict_file,
+                                            rm_newlines=True, 
+                                            replace_char='',
+                                            infer=True,
+                                            na_values=na_values,
+                                            na_patterns=na_patterns)
 
-    # Iterate through the dataframes to create a new subset dictionary
-    data_dict = {}
-    for sheet_name, df in dfs.items():
-        # Check if each sheet/tab matches the data dictionary columns/schema and is not empty
-        if set(Config.DATA_DICT_SCHEMA.keys()).issubset(set(df.columns)) and len(df) != 0 :
-            # Ensure data types
-            df_with_types = df.astype(Config.DATA_DICT_SCHEMA, errors='ignore') 
-            # Ignore rows without a field/column name
-            df_with_types = df_with_types.dropna(subset=[Config.DATA_DICT_PRIMARY_KEY], 
-                                                    inplace=False)
-            
-            # Convert the dataframes into dictionaries for easier lookup
-            df_with_types = df_with_types.set_index(Config.DATA_DICT_PRIMARY_KEY) 
-            sheet_schema = json.loads(df_with_types.to_json(orient='index')) 
-            sheet_schema = {k: {**v, Config.DATA_DICT_PRIMARY_KEY: k} 
-                            for k, v in sheet_schema.items()}
-            data_dict[sheet_name] = sheet_schema
+        # Iterate through the dataframes to create a new subset dictionary
+        data_dict = {}
+        for sheet_name, df in dfs.items():
+            # Check if each sheet/tab matches the data dictionary columns/schema and is not empty
+            if set(Config.DATA_DICT_SCHEMA.keys()).issubset(set(df.columns)) and len(df) != 0 :
+                # Ensure data types
+                if isinstance(df, ps.DataFrame):
+                                    df = df.to_pandas()
+                df_with_types = df.astype(Config.DATA_DICT_SCHEMA, errors='ignore')
+                # Ignore rows without a field/column name
+                df_with_types = df_with_types.dropna(subset=[Config.DATA_DICT_PRIMARY_KEY], 
+                                                        inplace=False)
+                
+                # Convert the dataframes into dictionaries for easier lookup
+                df_with_types = df_with_types.set_index(Config.DATA_DICT_PRIMARY_KEY) 
+                sheet_schema = json.loads(df_with_types.to_json(orient='index')) 
+                sheet_schema = {k: {**v, Config.DATA_DICT_PRIMARY_KEY: k} 
+                                for k, v in sheet_schema.items()}
+                data_dict[sheet_name] = sheet_schema
 
-    # Convert any nested string literal lists, dicts, tuples into Python objects
-    data_dict = eval_nested_string_literals(data_dict)
+        # Convert any nested string literal lists, dicts, tuples into Python objects
+        data_dict = eval_nested_string_literals(data_dict)
 
-    if out_dir and out_name:
-        # Convert the dictionary to a formatted JSON string
-        json_string = json.dumps(data_dict, indent=4, sort_keys=True, cls=Config.jsonEncoder)
-        output_path = os.path.join(out_dir, f'{out_name}.json')
-        # Save the JSON text to a file
-        with open(output_path, "w") as f:
-            f.write(json_string)
-        print(f'Data saved to: {output_path}')
+        if out_dir and out_name:
+            # Convert the dictionary to a formatted JSON string
+            json_string = json.dumps(data_dict, indent=4, sort_keys=True, cls=Config.jsonEncoder)
+            output_path = os.path.join(out_dir, f'{out_name}.json')
+            # Save the JSON text to a file
+            with open(output_path, "w") as f:
+                f.write(json_string)
+            print(f'Data saved to: {output_path}')
 
-    # except FileNotFoundError:
-    #     print(f"Error: File '{data_dict_file}' not found.")
-    # except Exception as e:  # Catch any type of exception
-    #     print(f"An error occurred: {e}")  # Print the error message
+    except FileNotFoundError:
+        print(f"Error: File '{data_dict_file}' not found.")
+    except Exception as e:  # Catch any type of exception
+        print(f"An error occurred: {e}")  # Print the error message
 
     return data_dict
 
