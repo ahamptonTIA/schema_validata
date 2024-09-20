@@ -2222,7 +2222,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
 
     if is_spark_pandas:
         null_mask = df[column_name].isna()
-        df = df[null_mask].to_pandas()
+        df = df[null_mask.to_numpy()]
     else:
         null_mask = df[column_name].isnull()
         df = df[null_mask]
@@ -2278,7 +2278,11 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
     null_mask = column_series.isnull()
     duplicate_mask = column_series.duplicated(keep=False) & ~null_mask
-    df = df[duplicate_mask]
+
+    if is_spark_pandas:
+        df = df[duplicate_mask.to_numpy()]
+    else:
+        df = df[duplicate_mask]
 
     results = []
     for row_index, row in df.iterrows():
@@ -2335,8 +2339,12 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     column_dtype = column_series.dtype
     allowed_values = pd.Series(allowed_values).astype(column_dtype)
     not_allowed_mask = ~column_series.isin(allowed_values) & column_series.notna()
-    df = df[not_allowed_mask]
-
+    
+    if is_spark_pandas:
+        df = df[not_allowed_mask.to_numpy()]
+    else:
+        df = df[not_allowed_mask]
+        
     results = []
     for row_index, row in df.iterrows():
         output_dict = {
@@ -2383,19 +2391,25 @@ def value_errors_regex_mismatches(df,
     is_pandas = isinstance(df, pd.DataFrame)
     is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
 
-    if is_spark_pandas:
-        df = df.to_pandas()
+    if not (is_pandas or is_spark_pandas):
+        raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
-    # Identify non-null values
-    non_null_mask = df[column_name].notnull()  
-    pattern_match = df.loc[non_null_mask, 
-                           column_name].astype(str).str.match(regex_pattern)
-    # Invert to get mismatches
-    mismatch_mask = ~pattern_match  
+    if is_spark_pandas:
+        column_series = df[column_name].to_pandas()
+    else:
+        column_series = df[column_name]
+
+    non_null_mask = column_series.notnull()
+    pattern_match = column_series[non_null_mask].astype(str).str.match(regex_pattern)
+    mismatch_mask = ~pattern_match
+
+    if is_spark_pandas:
+        df = df[non_null_mask.to_numpy() & mismatch_mask.to_numpy()]
+    else:
+        df = df[non_null_mask & mismatch_mask]
 
     results = []
-    # Filter for mismatches
-    for row_index, row in df.loc[non_null_mask & mismatch_mask].iterrows():  
+    for row_index, row in df.iterrows():
         output_dict = {
             'Sheet Row': row_index + 2,
             'Error Type': 'Invalid Value Formatting',
@@ -2480,7 +2494,7 @@ def get_value_errors(dataset_path,
                 if 'allow_null' in flagged_errs \
                     and 'allow_null' not in ignore_errors:
                     sheet_v_errors.append(
-                        value_errors_nulls(df, col, 
+                        value_errors_nulls(df, col,  
                                            unique_column=unique_column)
                     )
                 if 'unique_value' in flagged_errs \
