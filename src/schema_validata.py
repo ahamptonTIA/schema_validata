@@ -2485,7 +2485,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 
     if isinstance(df, ps.DataFrame):
         try:
-            numeric_column = df[column_name].astype(float, errors='coerce')
+            numeric_column = df[column_name].astype(float)
         except (ValueError, TypeError):
             raise ValueError(f"Column '{column_name}' cannot be cast to numeric for comparison.")
 
