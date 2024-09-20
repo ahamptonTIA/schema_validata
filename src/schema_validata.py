@@ -2399,15 +2399,9 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
         strings within the limit.
     """
 
-    # Attempt to convert all values to strings
-    try:
-        str_values = df[column_name].astype(str, errors='ignore').fillna('')
-    except ValueError:
-        return pd.Series([])  # Conversion failed, handle exceeding values
-
-    exceeding_mask = str_values.str.len() > max_length
-
     if isinstance(df, ps.DataFrame):
+        str_values = df[column_name].astype(str, errors='ignore').fillna('')
+        exceeding_mask = str_values.str.len() > max_length
         filtered_df = df[exceeding_mask]
         results = filtered_df.apply(lambda row: {
             'Sheet Row': row.name + 2,
@@ -2418,6 +2412,12 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
             'Lookup Value': row[unique_column] if unique_column in df.columns else None,
         }, axis=1)
     else:
+        try:
+            str_values = df[column_name].astype(str, errors='ignore').fillna('')
+        except ValueError:
+            return pd.Series([])
+
+        exceeding_mask = str_values.str.len() > max_length
         results = []
         for row_index, row in df[exceeding_mask].iterrows():
             output_dict = {
@@ -2461,39 +2461,61 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
         (if provided), and the actual value from the 'column_name'.
     """
 
-    # Handle PySpark.pandas DataFrame consistently
     if isinstance(df, ps.DataFrame):
-        df = df.to_pandas()
+        numeric_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
+        numeric_column = pd.to_numeric(numeric_column, errors='coerce')
 
-    results = []
+        if test_type not in ("min", "max"):
+            raise ValueError("test_type must be either 'min' or 'max'")
 
-    # Check for numeric values and handle missing values consistently
-    numeric_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
-    numeric_column = pd.to_numeric(numeric_column, errors='coerce')
+        if pd.api.types.is_numeric_dtype(numeric_column):
+            error_type = None
+            if test_type == "min":
+                mask = numeric_column < value
+                error_type = f"Below Minimum Allowed Value ({value})"
+            elif test_type == "max":
+                mask = numeric_column > value
+                error_type = f"Exceeds Maximum Allowed Value ({value})"
 
-    if test_type not in ("min", "max"):
-        raise ValueError("test_type must be either 'min' or 'max'")
+            filtered_df = df[mask]
+            results = filtered_df.apply(lambda row: {
+                "Sheet Row": row.name + 2,
+                "Error Type": error_type,
+                "Column Name": column_name,
+                "Error Value": row[column_name],
+                "Lookup Column": unique_column if unique_column in df.columns else None,
+                "Lookup Value": row[unique_column] if unique_column in df.columns else None,
+            }, axis=1)
+    else:
+        numeric_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
+        numeric_column = pd.to_numeric(numeric_column, errors='coerce')
 
-    if pd.api.types.is_numeric_dtype(numeric_column):
-        error_type = None
-        if test_type == "min":
-            mask = numeric_column < value
-            error_type = f"Below Minimum Allowed Value ({value})"
-        elif test_type == "max":
-            mask = numeric_column > value
-            error_type = f"Exceeds Maximum Allowed Value ({value})"
+        if test_type not in ("min", "max"):
+            raise ValueError("test_type must be either 'min' or 'max'")
 
-        filtered_df = df[mask]
-        results = filtered_df.apply(lambda row: {
-            "Sheet Row": row.name + 2,
-            "Error Type": error_type,
-            "Column Name": column_name,
-            "Error Value": row[column_name],
-            "Lookup Column": unique_column if unique_column in df.columns else None,
-            "Lookup Value": row[unique_column] if unique_column in df.columns else None,
-        }, axis=1)
+        if pd.api.types.is_numeric_dtype(numeric_column):
+            error_type = None
+            if test_type == "min":
+                mask = numeric_column < value
+                error_type = f"Below Minimum Allowed Value ({value})"
+            elif test_type == "max":
+                mask = numeric_column > value
+                error_type = f"Exceeds Maximum Allowed Value ({value})"
 
-    return results
+            results = []
+            for row_index, row in df[mask].iterrows():
+                output_dict = {
+                    "Sheet Row": row_index + 2,
+                    "Error Type": error_type,
+                    "Column Name": column_name,
+                    "Error Value": row[column_name],
+                }
+                if unique_column and unique_column in df.columns:
+                    output_dict["Lookup Column"] = unique_column
+                    output_dict["Lookup Value"] = row[unique_column]
+                results.append(output_dict)
+
+    return pd.Series(results)
 
 #---------------------------------------------------------------------------------- 
 
@@ -2521,31 +2543,37 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
         (if provided), and the actual value from the 'column_name'.
     """
 
-    # Handle PySpark.pandas DataFrame consistently
     if isinstance(df, ps.DataFrame):
-        df = df.to_pandas()
+        non_null_mask = df[column_name].notnull()
+        pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
+        mismatch_mask = ~pattern_match
+        filtered_df = df[non_null_mask & mismatch_mask]
+        results = filtered_df.apply(lambda row: {
+            'Sheet Row': row.name + 2,
+            'Error Type': 'Invalid Value Formatting',
+            'Column Name': column_name,
+            'Error Value': row[column_name],
+            'Lookup Column': unique_column if unique_column in df.columns else None,
+            'Lookup Value': row[unique_column] if unique_column in df.columns else None,
+        }, axis=1)
+    else:
+        non_null_mask = df[column_name].notnull()
+        pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
+        mismatch_mask = ~pattern_match
+        results = []
+        for row_index, row in df[non_null_mask & mismatch_mask].iterrows():
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': 'Invalid Value Formatting',
+                'Column Name': column_name,
+                'Error Value': row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
 
-    # Identify non-null values
-    non_null_mask = df[column_name].notnull()
-
-    # Convert values to strings and apply regex pattern
-    pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
-
-    # Invert to get mismatches
-    mismatch_mask = ~pattern_match
-
-    filtered_df = df[non_null_mask & mismatch_mask]
-
-    results = filtered_df.apply(lambda row: {
-        'Sheet Row': row.name + 2,
-        'Error Type': 'Invalid Value Formatting',
-        'Column Name': column_name,
-        'Error Value': row[column_name],
-        'Lookup Column': unique_column if unique_column in df.columns else None,
-        'Lookup Value': row[unique_column] if unique_column in df.columns else None,
-    }, axis=1)
-
-    return results
+    return pd.Series(results)
 
 #---------------------------------------------------------------------------------- 
 def get_value_errors(dataset_path, schema_errors, data_dict, 
