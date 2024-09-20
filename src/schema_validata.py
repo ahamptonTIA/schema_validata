@@ -845,7 +845,8 @@ def data_dict_to_json(data_dict_file,
                                             infer=True,
                                             na_values=na_values,
                                             na_patterns=na_patterns,
-                                            use_spark_pandas=False)
+                                            # use_spark_pandas=False
+                                            )
 
         # Iterate through the dataframes to create a new subset dictionary
         data_dict = {}
@@ -2327,15 +2328,12 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
         raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
     if is_spark_pandas:
-        column_dtype = df[column_name].dtype
-        allowed_values = ps.Series(allowed_values).astype(str(column_dtype))
-        not_allowed_mask = ~df[column_name].isin(allowed_values) & df[column_name].notna()
-        df = df[not_allowed_mask].to_pandas()
-    else:
-        column_dtype = df[column_name].dtype
-        allowed_values = pd.Series(allowed_values).astype(column_dtype)
-        not_allowed_mask = ~df[column_name].isin(allowed_values) & df[column_name].notna()
-        df = df[not_allowed_mask]
+        df = df.to_pandas()
+
+    column_dtype = df[column_name].dtype
+    allowed_values = pd.Series(allowed_values).astype(column_dtype)
+    not_allowed_mask = ~df[column_name].isin(allowed_values) & df[column_name].notna()
+    df = df[not_allowed_mask]
 
     results = []
     for row_index, row in df.iterrows():
