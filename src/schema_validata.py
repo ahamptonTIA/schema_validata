@@ -251,50 +251,50 @@ def get_spreadsheet_metadata(file_path):
     dict
         Dictionary of file metadata.
     """
-    try:
-        # Extract filename and extension
-        filename = os.path.basename(file_path)
-        base_name, ext = os.path.splitext(filename)
+    # try:
+    # Extract filename and extension
+    filename = os.path.basename(file_path)
+    base_name, ext = os.path.splitext(filename)
 
-        # Get date time file metadata
-        statinfo = os.stat(file_path)
-        create_date = datetime.fromtimestamp(statinfo.st_ctime).isoformat()
-        modified_date = datetime.fromtimestamp(statinfo.st_mtime).isoformat()
+    # Get date time file metadata
+    statinfo = os.stat(file_path)
+    create_date = datetime.fromtimestamp(statinfo.st_ctime).isoformat()
+    modified_date = datetime.fromtimestamp(statinfo.st_mtime).isoformat()
 
-        # Create dictionary to store the metadata
-        file_meta = {}
+    # Create dictionary to store the metadata
+    file_meta = {}
 
-        # Read the data into a pandas dataframe by sheet
-        dfs = read_csv_or_excel_to_df(file_path, infer=True, multi_sheets=True)
+    # Read the data into a pandas dataframe by sheet
+    dfs = read_csv_or_excel_to_df(file_path, infer=True, multi_sheets=True)
 
-        file_hash = get_md5_hash(file_path)
-        for sheet_name, df in dfs.items():
-            if spark_available and isinstance(df, ps.DataFrame):
-                df = df.to_pandas()
-            meta = {
-                'file_path': file_path,
-                'file_name': filename,
-                'file_type': ext,
-                'file_size_bytes': f'{statinfo.st_size:,}',
-                'file_size_memory_unit': get_byte_units(int(statinfo.st_size)),
-                'record_qty': f'{len(df):,}',
-                'column_qty': f'{len(df.columns):,}',
-                'file_md5_hash': file_hash,
-                'created': create_date,
-                'modified': modified_date
-            }
+    file_hash = get_md5_hash(file_path)
+    for sheet_name, df in dfs.items():
+        if spark_available and isinstance(df, ps.DataFrame):
+            df = df.to_pandas()
+        meta = {
+            'file_path': file_path,
+            'file_name': filename,
+            'file_type': ext,
+            'file_size_bytes': f'{statinfo.st_size:,}',
+            'file_size_memory_unit': get_byte_units(int(statinfo.st_size)),
+            'record_qty': f'{len(df):,}',
+            'column_qty': f'{len(df.columns):,}',
+            'file_md5_hash': file_hash,
+            'created': create_date,
+            'modified': modified_date
+        }
 
-            # Generate the schema dictionary
-            file_meta[sheet_name] = meta
+        # Generate the schema dictionary
+        file_meta[sheet_name] = meta
 
-        return file_meta
+    return file_meta
 
-    except FileNotFoundError:
-        return f"File not found: {file_path}"
-    except PermissionError:
-        return f"Permission error reading file: {file_path}"
-    except Exception as e:
-        return f"An error occurred: {str(e)}"
+    # except FileNotFoundError:
+    #     return f"File not found: {file_path}"
+    # except PermissionError:
+    #     return f"Permission error reading file: {file_path}"
+    # except Exception as e:
+    #     return f"An error occurred: {str(e)}"
 
 # ----------------------------------------------------------------------------------
 def is_numeric_type(value):
