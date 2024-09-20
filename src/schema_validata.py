@@ -721,7 +721,8 @@ def xlsx_tabs_to_pd_dataframes(file_path,
                                rm_newlines=True, 
                                replace_char="",
                                na_values=Config.NA_VALUES,
-                               na_patterns=Config.NA_PATTERNS
+                               na_patterns=Config.NA_PATTERNS,
+                               use_spark_pandas=True
                                ):
     """
     Read all sheets/tabs from an excel file into a dictionary of 
@@ -747,6 +748,9 @@ def xlsx_tabs_to_pd_dataframes(file_path,
     na_patterns: (Optional) 
         List of regular expressions to identify strings representing missing values. 
         (default: None)     
+    use_spark_pandas: (Optional)
+        If True, use pyspark.pandas to read the data.
+        (default: True) will use pyspark.pandas if available 
     Returns:
     -------
     dict
@@ -763,8 +767,9 @@ def xlsx_tabs_to_pd_dataframes(file_path,
     filename = os.path.basename(file_path)
     base_name, ext = os.path.splitext(filename)
 
-    # Check if pyspark.pandas is available
-    use_spark_pandas = 'pyspark.pandas' in sys.modules
+    if use_spark_pandas: 
+        # Check if pyspark.pandas is available
+        use_spark_pandas = 'pyspark.pandas' in sys.modules
 
     # Iterate through each worksheet and read its data into a DataFrame
     for sheet_name in xls.sheet_names:
@@ -839,7 +844,8 @@ def data_dict_to_json(data_dict_file,
                                             replace_char='',
                                             infer=True,
                                             na_values=na_values,
-                                            na_patterns=na_patterns)
+                                            na_patterns=na_patterns,
+                                            use_spark_pandas=False)
 
         # Iterate through the dataframes to create a new subset dictionary
         data_dict = {}
