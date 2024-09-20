@@ -2192,19 +2192,16 @@ def validate_schema(observed_schema,
 
     return schema_violations
 
-    #---------------------------------------------------------------------------------- 
-
-import pandas as pd
-import pyspark.pandas as ps
+#---------------------------------------------------------------------------------- 
 
 def value_errors_nulls(df, column_name, unique_column=None):
     """
-    Identifies null values in a DataFrame column and returns their row 
+    Identifies null values in a DataFrame column and returns their row
     indices or unique values.
 
     Parameters:
     ----------
-    df : pd.DataFrame or ps.DataFrame
+    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check for null values.
@@ -2213,33 +2210,24 @@ def value_errors_nulls(df, column_name, unique_column=None):
 
     Returns:
     -------
-    pd.Series or ps.Series:
+    pd.Series or pyspark.sql.pandas.Series:
         A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
         'Column Name', and the unique column value (if provided).
     """
 
-    if isinstance(df, ps.DataFrame):
-        # PySpark.pandas logic
-        null_mask = df[column_name].isnull()  # Create a boolean mask of null values
-
-        # Filter the DataFrame based on the null mask
+    if isinstance(df, pyspark.sql.pandas.DataFrame):
+        null_mask = df[column_name].isnull()
         filtered_df = df[null_mask]
-
-        # Create a Series containing dictionaries with the desired information
         results = filtered_df.apply(lambda row: {
-            'Sheet Row': row.name + 2,  # Adjust row index as needed
+            'Sheet Row': row.name + 2,
             'Error Type': 'Null Value',
             'Column Name': column_name,
             'Error Value': row[column_name],
             'Lookup Column': unique_column if unique_column in df.columns else None,
             'Lookup Value': row[unique_column] if unique_column in df.columns else None,
         }, axis=1)
-
-        return results
     else:
-        # Pandas logic
-        null_mask = df[column_name].isnull()  # Create a boolean mask of null values
-
+        null_mask = df[column_name].isnull()
         results = []
         for row_index, row in df[null_mask].iterrows():
             output_dict = {
@@ -2255,19 +2243,19 @@ def value_errors_nulls(df, column_name, unique_column=None):
 
             results.append(output_dict)
 
-        return pd.Series(results)
+    return pd.Series(results)
 
 #---------------------------------------------------------------------------------- 
 
 def value_errors_duplicates(df, column_name, unique_column=None):
     """
-    Identifies duplicate values in a DataFrame column and returns their row indices, 
+    Identifies duplicate values in a DataFrame column and returns their row indices,
     unique values (if provided), and the actual values from
     the column, along with error type and column name.
 
     Parameters:
     ----------
-    df : pd.DataFrame or ps.DataFrame
+    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check for duplicates.
@@ -2276,21 +2264,16 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
     Returns:
     -------
-    pd.Series or ps.Series:
+    pd.Series or pyspark.sql.pandas.Series:
         A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
         'Column Name', the unique column value (if provided), and the actual
         value from the 'column_name'.
     """
 
-    if isinstance(df, ps.DataFrame):
-        # PySpark.pandas logic
+    if isinstance(df, pyspark.sql.pandas.DataFrame):
         null_mask = df[column_name].isnull()
         duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
-
-        # Filter the DataFrame based on the null mask
         filtered_df = df[duplicate_mask]
-
-        # Create a Series containing dictionaries with the desired information
         results = filtered_df.apply(lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': 'Duplicate Value',
@@ -2299,13 +2282,9 @@ def value_errors_duplicates(df, column_name, unique_column=None):
             'Lookup Column': unique_column if unique_column in df.columns else None,
             'Lookup Value': row[unique_column] if unique_column in df.columns else None,
         }, axis=1)
-
-        return results
     else:
-        # Pandas logic
         null_mask = df[column_name].isnull()
         duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
-
         results = []
         for row_index, row in df[duplicate_mask].iterrows():
             output_dict = {
@@ -2321,7 +2300,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
             results.append(output_dict)
 
-        return pd.Series(results)
+    return pd.Series(results)
 
 #---------------------------------------------------------------------------------- 
 
@@ -2331,7 +2310,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
 
     Parameters:
     ----------
-    df : pd.DataFrame or ps.DataFrame
+    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2342,13 +2321,13 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
 
     Returns:
     -------
-    pd.Series or ps.Series:
+    pd.Series or pyspark.sql.pandas.Series:
         A Series containing dictionaries, each with 'Sheet Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
 
-    if isinstance(df, ps.DataFrame):
+    if isinstance(df, pyspark.sql.pandas.DataFrame):
         null_mask = df[column_name].isnull()
         allowed_mask = df[column_name].isin(allowed_values)
         filtered_df = df[~allowed_mask & ~null_mask]
@@ -2389,7 +2368,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
 
     Parameters:
     ----------
-    df : pd.DataFrame or ps.DataFrame
+    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2400,7 +2379,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
 
     Returns:
     -------
-    pd.Series or ps.Series:
+    pd.Series or pyspark.sql.pandas.Series:
         A Series containing dictionaries, each with 'Sheet Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
@@ -2408,7 +2387,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
         strings within the limit.
     """
 
-    if isinstance(df, ps.DataFrame):
+    if isinstance(df, pyspark.sql.pandas.DataFrame):
         str_values = df[column_name].astype(str, errors='ignore').fillna('')
         exceeding_mask = str_values.str.len() > max_length
         filtered_df = df[exceeding_mask]
@@ -2451,7 +2430,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 
     Parameters:
     ----------
-    df : pd.DataFrame or ps.DataFrame
+    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2464,37 +2443,38 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 
     Returns:
     -------
-    pd.Series or ps.Series:
+    pd.Series or pyspark.sql.pandas.Series:
         A Series containing dictionaries, each with 'Sheet Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
 
-    if isinstance(df, ps.DataFrame):
-        numeric_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
-        numeric_column = pd.to_numeric(numeric_column, errors='coerce')
+    if isinstance(df, pyspark.sql.pandas.DataFrame):
+        numeric_column = df.select(column_name).cast("double")  # Cast to numeric for comparison
 
         if test_type not in ("min", "max"):
             raise ValueError("test_type must be either 'min' or 'max'")
 
-        if pd.api.types.is_numeric_dtype(numeric_column):
-            error_type = None
-            if test_type == "min":
-                mask = numeric_column < value
-                error_type = f"Below Minimum Allowed Value ({value})"
-            elif test_type == "max":
-                mask = numeric_column > value
-                error_type = f"Exceeds Maximum Allowed Value ({value})"
+        error_type = None
+        if test_type == "min":
+            mask = numeric_column < value
+            error_type = f"Below Minimum Allowed Value ({value})"
+        elif test_type == "max":
+            mask = numeric_column > value
+            error_type = f"Exceeds Maximum Allowed Value ({value})"
 
-            filtered_df = df[mask]
-            results = filtered_df.apply(lambda row: {
+        filtered_df = df.where(mask)
+        results = filtered_df.applyInPandas(
+            lambda row: {
                 "Sheet Row": row.name + 2,
                 "Error Type": error_type,
                 "Column Name": column_name,
                 "Error Value": row[column_name],
                 "Lookup Column": unique_column if unique_column in df.columns else None,
                 "Lookup Value": row[unique_column] if unique_column in df.columns else None,
-            }, axis=1)
+            },
+            axis=1
+        )
     else:
         numeric_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
         numeric_column = pd.to_numeric(numeric_column, errors='coerce')
@@ -2529,61 +2509,66 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 #---------------------------------------------------------------------------------- 
 
 def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=None):
-    """
-    Identifies values in a DataFrame column that do not match a
-    specified regex pattern, ignoring null values.
+  """
+  Identifies values in a DataFrame column that do not match a
+  specified regex pattern, ignoring null values.
 
-    Parameters:
-    ----------
-    df : pd.DataFrame or ps.DataFrame
-        The DataFrame to check.
-    column_name : str
-        The name of the column to check.
-    regex_pattern : str
-        The regular expression pattern to check against.
-    unique_column : str, optional
-        The name of the column containing unique values.
+  Parameters:
+  ----------
+  df : pd.DataFrame or pyspark.sql.pandas.DataFrame
+      The DataFrame to check.
+  column_name : str
+      The name of the column to check.
+  regex_pattern : str
+      The regular expression pattern to check against.
+  unique_column : str, optional
+      The name of the column containing unique values.
 
-    Returns:
-    -------
-    pd.Series or ps.Series:
-        A Series containing dictionaries, each with 'Sheet Row',
-        'Error Type', 'Column Name', the unique column value
-        (if provided), and the actual value from the 'column_name'.
-    """
+  Returns:
+  -------
+  pd.Series or pyspark.sql.pandas.Series:
+      A Series containing dictionaries, each with 'Sheet Row',
+      'Error Type', 'Column Name', the unique column value
+      (if provided), and the actual value from the 'column_name'.
+  """
 
-    if isinstance(df, ps.DataFrame):
-        non_null_mask = df[column_name].notnull()
-        pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
-        mismatch_mask = ~pattern_match
-        filtered_df = df[non_null_mask & mismatch_mask]
-        results = filtered_df.apply(lambda row: {
+  if isinstance(df, pyspark.sql.pandas.DataFrame):
+    # Handle PySpark.pandas
+    non_null_mask = df[column_name].isNotNull()
+    pattern_match = df.where(non_null_mask).select(column_name).cast("string").rdd.flatMap(lambda row: [row[0]]).toDF(). \
+        withColumn("match", F.col(column_name).like(regex_pattern))  # Use like for PySpark.pandas compatibility
+    mismatch_mask = ~F.col("match")
+    filtered_df = df.join(pattern_match.select(F.col("match")), on=column_name, how="inner").where(mismatch_mask)
+    results = filtered_df.applyInPandas(
+        lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': 'Invalid Value Formatting',
             'Column Name': column_name,
             'Error Value': row[column_name],
             'Lookup Column': unique_column if unique_column in df.columns else None,
             'Lookup Value': row[unique_column] if unique_column in df.columns else None,
-        }, axis=1)
-    else:
-        non_null_mask = df[column_name].notnull()
-        pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
-        mismatch_mask = ~pattern_match
-        results = []
-        for row_index, row in df[non_null_mask & mismatch_mask].iterrows():
-            output_dict = {
-                'Sheet Row': row_index + 2,
-                'Error Type': 'Invalid Value Formatting',
-                'Column Name': column_name,
-                'Error Value': row[column_name],
-            }
-            if unique_column and unique_column in df.columns:
-                output_dict["Lookup Column"] = unique_column
-                output_dict["Lookup Value"] = row[unique_column]
-            results.append(output_dict)
+        }, axis=1
+    )
+  else:
+    # Handle pandas case
+    non_null_mask = df[column_name].notnull()
+    pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
+    mismatch_mask = ~pattern_match
+    results = []
+    for row_index, row in df[non_null_mask & mismatch_mask].iterrows():
+      output_dict = {
+          'Sheet Row': row_index + 2,
+          'Error Type': 'Invalid Value Formatting',
+          'Column Name': column_name,
+          'Error Value': row[column_name],
+      }
+      if unique_column and unique_column in df.columns:
+        output_dict["Lookup Column"] = unique_column
+        output_dict["Lookup Value"] = row[unique_column]
+      results.append(output_dict)
 
-    return pd.Series(results)
-
+  return pd.Series(results)
+  
 #---------------------------------------------------------------------------------- 
 def get_value_errors(dataset_path, schema_errors, data_dict, 
                      schema_mapping, ignore_errors=['allow_null']):
