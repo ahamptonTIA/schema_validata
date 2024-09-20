@@ -2328,7 +2328,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
 
     if is_spark_pandas:
         column_dtype = df[column_name].dtype
-        allowed_values = ps.Series(allowed_values).astype(column_dtype)
+        allowed_values = ps.Series(allowed_values).astype(str(column_dtype))
         not_allowed_mask = ~df[column_name].isin(allowed_values) & df[column_name].notna()
         df = df[not_allowed_mask].to_pandas()
     else:
