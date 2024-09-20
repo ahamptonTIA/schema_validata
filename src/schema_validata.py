@@ -2326,58 +2326,58 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 #---------------------------------------------------------------------------------- 
 
 def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
-  """
-  Identifies values in a DataFrame column that are not present in a list of allowed values.
+    """
+    Identifies values in a DataFrame column that are not present in a list of allowed values.
 
-  Parameters:
-  ----------
-  df : pd.DataFrame or ps.DataFrame
-      The DataFrame to check.
-  column_name : str
-      The name of the column to check.
-  allowed_values : list
-      A list of allowed values.
-  unique_column : str, optional
-      The name of the column containing unique values.
+    Parameters:
+    ----------
+    df : pd.DataFrame or ps.DataFrame
+        The DataFrame to check.
+    column_name : str
+        The name of the column to check.
+    allowed_values : list
+        A list of allowed values.
+    unique_column : str, optional
+        The name of the column containing unique values.
 
-  Returns:
-  -------
-  pd.Series or ps.Series:
-      A Series containing dictionaries, each with 'Sheet Row',
-      'Error Type', 'Column Name', the unique column value
-      (if provided), and the actual value from the 'column_name'.
-  """
+    Returns:
+    -------
+    pd.Series or ps.Series:
+        A Series containing dictionaries, each with 'Sheet Row',
+        'Error Type', 'Column Name', the unique column value
+        (if provided), and the actual value from the 'column_name'.
+    """
 
-  if isinstance(df, ps.DataFrame):
-    null_mask = df[column_name].isnull()
-    allowed_mask = df[column_name].isin(allowed_values)
-    filtered_df = df[~allowed_mask & ~null_mask]
-    results = filtered_df.apply(lambda row: {
-        'Sheet Row': row.name + 2,
-        'Error Type': 'Unallowed Value',
-        'Column Name': column_name,
-        'Error Value': row[column_name],
-        'Lookup Column': unique_column if unique_column in df.columns else None,
-        'Lookup Value': row[unique_column] if unique_column in df.columns else None,
-    }, axis=1)
-  else:
-    null_mask = df[column_name].isnull()
-    allowed_mask = df[column_name].isin(allowed_values)
-    filtered_df = df[~allowed_mask & ~null_mask]
-    results = []
-    for row_index, row in filtered_df.iterrows():
-      output_dict = {
-          'Sheet Row': row_index + 2,
-          'Error Type': 'Unallowed Value',
-          'Column Name': column_name,
-          'Error Value': row[column_name],
-      }
-      if unique_column and unique_column in df.columns:
-          output_dict["Lookup Column"] = unique_column
-          output_dict["Lookup Value"] = row[unique_column]
-      results.append(output_dict)
+    if isinstance(df, ps.DataFrame):
+        null_mask = df[column_name].isnull()
+        allowed_mask = df[column_name].isin(allowed_values)
+        filtered_df = df[~allowed_mask & ~null_mask]
+        results = filtered_df.apply(lambda row: {
+            'Sheet Row': row.name + 2,
+            'Error Type': 'Unallowed Value',
+            'Column Name': column_name,
+            'Error Value': row[column_name],
+            'Lookup Column': unique_column if unique_column in df.columns else None,
+            'Lookup Value': row[unique_column] if unique_column in df.columns else None,
+        }, axis=1)
+    else:
+        null_mask = df[column_name].isnull()
+        allowed_mask = df[column_name].isin(allowed_values)
+        filtered_df = df[~allowed_mask & ~null_mask]
+        results = []
+        for row_index, row in filtered_df.iterrows():
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': 'Unallowed Value',
+                'Column Name': column_name,
+                'Error Value': row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
 
-  return pd.Series(results)
+    return pd.Series(results)
 
 #---------------------------------------------------------------------------------- 
 
