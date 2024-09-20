@@ -2278,24 +2278,25 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     """
 
     if isinstance(df, ps.DataFrame):
-        null_mask = df[column_name].isnull()
-        duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
-        filtered_df = df[duplicate_mask]
+        with ps.option_context('compute.ops_on_diff_frames', True):
+            null_mask = df[column_name].isnull()
+            duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
+            filtered_df = df[duplicate_mask]
 
-        if len(filtered_df) == 0:
-            return ps.Series([])
+            if len(filtered_df) == 0:
+                return ps.Series([])
 
-        # Create a new DataFrame with additional columns
-        new_df = filtered_df.assign(
-            Error_Type="Duplicate Value",
-            Sheet_Row=filtered_df.index + 2,
-            Column_Name=column_name,
-            Error_Value=filtered_df[column_name],
-            Lookup_Column=unique_column if unique_column in df.columns else None,
-            Lookup_Value=filtered_df[unique_column] if unique_column in df.columns else None
-        )
+            # Create a new DataFrame with additional columns
+            new_df = filtered_df.assign(
+                Error_Type="Duplicate Value",
+                Sheet_Row=filtered_df.index + 2,
+                Column_Name=column_name,
+                Error_Value=filtered_df[column_name],
+                Lookup_Column=unique_column if unique_column in df.columns else None,
+                Lookup_Value=filtered_df[unique_column] if unique_column in df.columns else None
+            )
 
-        return new_df.to_pandas()
+            return new_df.to_pandas()
 
     else:
         null_mask = df[column_name].isnull()
