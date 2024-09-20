@@ -2272,13 +2272,13 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
     if is_spark_pandas:
-        null_mask = df[column_name].isna()
-        duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
-        df = df[duplicate_mask].to_pandas()
+        column_series = df[column_name].to_pandas()
     else:
-        null_mask = df[column_name].isnull()
-        duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
-        df = df[duplicate_mask]
+        column_series = df[column_name]
+
+    null_mask = column_series.isnull()
+    duplicate_mask = column_series.duplicated(keep=False) & ~null_mask
+    df = df[duplicate_mask]
 
     results = []
     for row_index, row in df.iterrows():
@@ -2328,11 +2328,13 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
         raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
     if is_spark_pandas:
-        df = df.to_pandas()
+        column_series = df[column_name].to_pandas()
+    else:
+        column_series = df[column_name]
 
-    column_dtype = df[column_name].dtype
+    column_dtype = column_series.dtype
     allowed_values = pd.Series(allowed_values).astype(column_dtype)
-    not_allowed_mask = ~df[column_name].isin(allowed_values) & df[column_name].notna()
+    not_allowed_mask = ~column_series.isin(allowed_values) & column_series.notna()
     df = df[not_allowed_mask]
 
     results = []
@@ -2349,7 +2351,6 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
         results.append(output_dict)
 
     return results
-
 #----------------------------------------------------------------------------------
 
 def value_errors_regex_mismatches(df,
