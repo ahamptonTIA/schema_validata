@@ -2487,7 +2487,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
         try:
             numeric_column = df[column_name].astype(float)
         except (ValueError, TypeError):
-            raise ValueError(f"Column '{column_name}' cannot be cast to numeric for comparison.")
+            pass
 
         if test_type not in ("min", "max"):
             raise ValueError("test_type must be either 'min' or 'max'")
