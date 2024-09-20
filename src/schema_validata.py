@@ -2218,7 +2218,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
         null_mask = df[column_name].isnull()
         filtered_df = df[null_mask]
         if len(filtered_df) == 0: return pd.Series([])  # Return an empty Series if filtered_df is empty
-        results = filtered_df.applyInPandas(lambda row: {
+        results = filtered_df.apply(lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': 'Null Value',
             'Column Name': column_name,
@@ -2275,7 +2275,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
         filtered_df = df[duplicate_mask]
         if len(filtered_df) == 0: return pd.Series([])  # Return an empty Series if filtered_df is empty
-        results = filtered_df.applyInPandas(lambda row: {
+        results = filtered_df.apply(lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': 'Duplicate Value',
             'Column Name': column_name,
@@ -2333,7 +2333,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
         allowed_mask = df[column_name].isin(allowed_values)
         filtered_df = df[~allowed_mask & ~null_mask]
         if len(filtered_df) == 0: return pd.Series([])  # Return an empty Series if filtered_df is empty
-        results = filtered_df.applyInPandas(lambda row: {
+        results = filtered_df.apply(lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': 'Unallowed Value',
             'Column Name': column_name,
@@ -2394,7 +2394,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
         exceeding_mask = str_values.str.len() > max_length
         filtered_df = df[exceeding_mask]
         if len(filtered_df) == 0: return pd.Series([])  # Return an empty Series if filtered_df is empty
-        results = filtered_df.applyInPandas(lambda row: {
+        results = filtered_df.apply(lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': f'Value Exceeds Max Length ({max_length})',
             'Column Name': column_name,
@@ -2470,7 +2470,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 
         filtered_df = df.where(mask)
         if len(filtered_df) == 0: return pd.Series([])  # Return an empty Series if filtered_df is empty
-        results = filtered_df.applyInPandas(
+        results = filtered_df.apply(
             lambda row: {
                 "Sheet Row": row.name + 2,
                 "Error Type": error_type,
@@ -2546,7 +2546,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
     mismatch_mask = ~F.col("match")
     filtered_df = df.join(pattern_match.select(F.col("match")), on=column_name, how="inner").where(mismatch_mask)
     if len(filtered_df) == 0: return pd.Series([])  # Return an empty Series if filtered_df is empty
-    results = filtered_df.applyInPandas(
+    results = filtered_df.apply(
         lambda row: {
             'Sheet Row': row.name + 2,
             'Error Type': 'Invalid Value Formatting',
