@@ -2215,7 +2215,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
     """
 
     if isinstance(df, ps.DataFrame):
-        null_mask = df[column_name].isNull()
+        null_mask = df[column_name].isnull()
         filtered_df = df[null_mask]
         if len(filtered_df) == 0:
             return pd.Series([])
@@ -2278,7 +2278,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     """
 
     if isinstance(df, ps.DataFrame):
-        null_mask = df[column_name].isNull()
+        null_mask = df[column_name].isnull()
         # Use `.drop_duplicates` for efficiency and keep non-null values
         filtered_df = df.dropDuplicates(subset=column_name, keep="first")
         filtered_df = filtered_df[filtered_df[column_name].isin(df[column_name])]
@@ -2343,7 +2343,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
   """
 
   if isinstance(df, ps.DataFrame):
-      null_mask = df[column_name].isNull()
+      null_mask = df[column_name].isnull()
       allowed_mask = df[column_name].isin(allowed_values)
       filtered_df = df[~allowed_mask & ~null_mask]
       if len(filtered_df) == 0:
