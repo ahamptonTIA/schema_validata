@@ -1272,7 +1272,6 @@ def infer_data_types(series):
     else:
         raise ValueError("Input must be a pandas or spark.pandas Series.")
 
-#----------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------- 
 
 def check_na_value(value, 
@@ -2201,7 +2200,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
 
     Parameters:
     ----------
-    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
+    df : pd.DataFrame or ps.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check for null values.
@@ -2215,7 +2214,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
         'Column Name', and the unique column value (if provided).
     """
 
-    if isinstance(df, pyspark.sql.pandas.DataFrame):
+    if isinstance(df, ps.DataFrame):
         null_mask = df[column_name].isnull()
         filtered_df = df[null_mask]
         results = filtered_df.apply(lambda row: {
@@ -2255,7 +2254,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
     Parameters:
     ----------
-    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
+    df : pd.DataFrame or ps.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check for duplicates.
@@ -2270,7 +2269,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         value from the 'column_name'.
     """
 
-    if isinstance(df, pyspark.sql.pandas.DataFrame):
+    if isinstance(df, ps.DataFrame):
         null_mask = df[column_name].isnull()
         duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
         filtered_df = df[duplicate_mask]
@@ -2310,7 +2309,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
 
     Parameters:
     ----------
-    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
+    df : pd.DataFrame or ps.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2327,7 +2326,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
         (if provided), and the actual value from the 'column_name'.
     """
 
-    if isinstance(df, pyspark.sql.pandas.DataFrame):
+    if isinstance(df, ps.DataFrame):
         null_mask = df[column_name].isnull()
         allowed_mask = df[column_name].isin(allowed_values)
         filtered_df = df[~allowed_mask & ~null_mask]
@@ -2368,7 +2367,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
 
     Parameters:
     ----------
-    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
+    df : pd.DataFrame or ps.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2387,7 +2386,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
         strings within the limit.
     """
 
-    if isinstance(df, pyspark.sql.pandas.DataFrame):
+    if isinstance(df, ps.DataFrame):
         str_values = df[column_name].astype(str, errors='ignore').fillna('')
         exceeding_mask = str_values.str.len() > max_length
         filtered_df = df[exceeding_mask]
@@ -2430,7 +2429,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 
     Parameters:
     ----------
-    df : pd.DataFrame or pyspark.sql.pandas.DataFrame
+    df : pd.DataFrame or ps.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check.
@@ -2449,7 +2448,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
         (if provided), and the actual value from the 'column_name'.
     """
 
-    if isinstance(df, pyspark.sql.pandas.DataFrame):
+    if isinstance(df, ps.DataFrame):
         numeric_column = df.select(column_name).cast("double")  # Cast to numeric for comparison
 
         if test_type not in ("min", "max"):
@@ -2515,7 +2514,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
 
   Parameters:
   ----------
-  df : pd.DataFrame or pyspark.sql.pandas.DataFrame
+  df : pd.DataFrame or ps.DataFrame
       The DataFrame to check.
   column_name : str
       The name of the column to check.
@@ -2532,7 +2531,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
       (if provided), and the actual value from the 'column_name'.
   """
 
-  if isinstance(df, pyspark.sql.pandas.DataFrame):
+  if isinstance(df, ps.DataFrame):
     # Handle PySpark.pandas
     non_null_mask = df[column_name].isNotNull()
     pattern_match = df.where(non_null_mask).select(column_name).cast("string").rdd.flatMap(lambda row: [row[0]]).toDF(). \
