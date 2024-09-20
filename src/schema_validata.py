@@ -2271,7 +2271,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
     Returns:
     -------
-    pd.Series or pyspark.sql.pandas.Series:
+    pd.Series or ps.Series:
         A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
         'Column Name', the unique column value (if provided), and the actual
         value from the 'column_name'.
@@ -2279,20 +2279,20 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
     if isinstance(df, ps.DataFrame):
         null_mask = df[column_name].isnull()
-        # Use `.drop_duplicates` for efficiency and keep non-null values
-        filtered_df = df.dropDuplicates(subset=column_name, keep="first")
-        filtered_df = filtered_df[filtered_df[column_name].isin(df[column_name])]
+        duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
+        filtered_df = df[duplicate_mask]
+
         if len(filtered_df) == 0:
-            return pd.Series([])
+            return ps.Series([])
 
         # Create a new DataFrame with additional columns
         new_df = filtered_df.assign(
             Error_Type="Duplicate Value",
             Sheet_Row=filtered_df.index + 2,
             Column_Name=column_name,
-            Error_Value=filtered_df[column_name],  # Corrected here
+            Error_Value=filtered_df[column_name],
             Lookup_Column=unique_column if unique_column in df.columns else None,
-            Lookup_Value=df[unique_column] if unique_column in df.columns else None
+            Lookup_Value=filtered_df[unique_column] if unique_column in df.columns else None
         )
 
         return new_df.to_pandas()
