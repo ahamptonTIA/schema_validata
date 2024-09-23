@@ -2548,7 +2548,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
         mismatch_mask = ~pattern_match
 
         # Filter based on non-null values and pattern mismatch
-        filtered_df = df[non_null_mask & mismatch_mask]
+        filtered_df = df.loc[non_null_mask & mismatch_mask]
         
 
         if filtered_df.empty:
