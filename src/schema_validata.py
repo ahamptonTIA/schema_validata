@@ -17,7 +17,7 @@ try:
     import pyspark.pandas as ps             # Library for data manipulation and analysis with Spark
     spark_available = True
 except ImportError:
-    display("pyspark.pandas is not available in the session.")
+    print("pyspark.pandas is not available in the session.")
     spark_available = False
 from sqlite3 import connect                 # Standard library for creating and managing SQLite3 databases
 import sqlparse                             # Library for parsing SQL queries
@@ -2398,7 +2398,8 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
 
   else:
       try:
-          str_values = df[column_name].astype(str, errors='ignore').fillna('')
+        #   str_values = df[column_name].astype(str, errors='ignore').fillna('')
+        str_values = df[column_name].fillna('').astype(str)
       except ValueError:
           return pd.Series([])
 
