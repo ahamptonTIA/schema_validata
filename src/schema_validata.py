@@ -2515,71 +2515,70 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 #---------------------------------------------------------------------------------- 
 
 def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=None):
-  """
-  Identifies values in a DataFrame column that do not match a
-  specified regex pattern, ignoring null values.
+    """
+    Identifies values in a DataFrame column that do not match a
+    specified regex pattern, ignoring null values.
 
-  Parameters:
-  ----------
-  df : pd.DataFrame or ps.DataFrame
-      The DataFrame to check.
-  column_name : str
-      The name of the column to check.
-  regex_pattern : str
-      The regular expression pattern to check against.
-  unique_column : str, optional
-      The name of the column containing unique values.
+    Parameters:
+    ----------
+    df : pd.DataFrame or ps.DataFrame
+        The DataFrame to check.
+    column_name : str
+        The name of the column to check.
+    regex_pattern : str
+        The regular expression pattern to check against.
+    unique_column : str, optional
+        The name of the column containing unique values.
 
-  Returns:
-  -------
-  pd.Series or pyspark.sql.pandas.Series:
-      A Series containing dictionaries, each with 'Sheet Row',
-      'Error Type', 'Column Name', the unique column value
-      (if provided), and the actual value from the 'column_name'.
-  """
+    Returns:
+    -------
+    pd.Series or ps.Series:
+        A Series containing dictionaries, each with 'Sheet Row',
+        'Error Type', 'Column Name', the unique column value
+        (if provided), and the actual value from the 'column_name'.
+    """
+    if isinstance(df, ps.DataFrame):
+        # Handle PySpark.pandas
+        non_null_mask = df[column_name].notna()
+        pattern_match = df[non_null_mask][column_name].astype(str).str.match(regex_pattern)
+        mismatch_mask = ~pattern_match
+        filtered_df = df[non_null_mask & mismatch_mask]
+        
+        if filtered_df.empty:
+            return pd.Series([])  # Return an empty Series if filtered_df is empty
 
-  if isinstance(df, ps.DataFrame):
-      # Handle PySpark.pandas
-      non_null_mask = df[column_name].isNotNull()
-      pattern_match = df.where(non_null_mask).select(column_name).cast("string").rdd.flatMap(lambda row: [row[0]]).toDF(). \
-          withColumn("match", F.col(column_name).like(regex_pattern))  # Use like for PySpark.pandas compatibility
-      mismatch_mask = ~F.col("match")
-      filtered_df = df.join(pattern_match.select(F.col("match")), on=column_name, how="inner").where(mismatch_mask)
-      if len(filtered_df) == 0:
-          return pd.Series([])  # Return an empty Series if filtered_df is empty
+        # Create a new DataFrame with additional columns
+        new_df = filtered_df.assign(
+            Error_Type='Invalid Value Formatting',
+            Sheet_Row=filtered_df.index + 2,
+            Column_Name=column_name,
+            Error_Value=filtered_df[column_name],
+            Lookup_Column=unique_column if unique_column in df.columns else None,
+            Lookup_Value=df[unique_column] if unique_column in df.columns else None
+        )
 
-      # Create a new DataFrame with additional columns
-      new_df = filtered_df.assign(
-          Error_Type='Invalid Value Formatting',
-          Sheet_Row=filtered_df.index + 2,
-          Column_Name=column_name,
-          Error_Value=filtered_df[column_name],  # Corrected here
-          Lookup_Column=unique_column if unique_column in df.columns else None,
-          Lookup_Value=df[unique_column] if unique_column in df.columns else None
-      )
+        return new_df.to_pandas()
 
-      return new_df.to_pandas()
+    else:
+        # Handle pandas case
+        non_null_mask = df[column_name].notnull()
+        pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
+        mismatch_mask = ~pattern_match
+        results = []
+        for row_index, row in df[non_null_mask & mismatch_mask].iterrows():
+            output_dict = {
+                'Sheet Row': row_index + 2,
+                'Error Type': 'Invalid Value Formatting',
+                'Column Name': column_name,
+                'Error Value': row[column_name],
+            }
+            if unique_column and unique_column in df.columns:
+                output_dict["Lookup Column"] = unique_column
+                output_dict["Lookup Value"] = row[unique_column]
+            results.append(output_dict)
 
-  else:
-      # Handle pandas case
-      non_null_mask = df[column_name].notnull()
-      pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
-      mismatch_mask = ~pattern_match
-      results = []
-      for row_index, row in df[non_null_mask & mismatch_mask].iterrows():
-          output_dict = {
-              'Sheet Row': row_index + 2,
-              'Error Type': 'Invalid Value Formatting',
-              'Column Name': column_name,
-              'Error Value': row[column_name],
-          }
-          if unique_column and unique_column in df.columns:
-              output_dict["Lookup Column"] = unique_column
-              output_dict["Lookup Value"] = row[unique_column]
-          results.append(output_dict)
-
-      return pd.Series(results)
-  
+        return pd.Series(results)
+    
 #---------------------------------------------------------------------------------- 
 def get_value_errors(dataset_path, schema_errors, data_dict, 
                      schema_mapping, ignore_errors=['allow_null']):
