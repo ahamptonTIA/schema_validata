@@ -2542,13 +2542,13 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
         # Reset index to ensure consistent indexing
         df = df.reset_index(drop=True)
 
-        # Handle PySpark.pandas
-        non_null_mask = df[column_name].notna()
-        pattern_match = df[non_null_mask][column_name].astype(str).str.match(regex_pattern)
-        mismatch_mask = ~pattern_match
+        # # Handle PySpark.pandas
+        # non_null_mask = df[column_name].notna()
+        # pattern_match = df[non_null_mask][column_name].astype(str).str.match(regex_pattern)
+        # mismatch_mask = ~pattern_match
 
         # Filter based on non-null values and pattern mismatch
-        filtered_df = df.loc[non_null_mask & mismatch_mask]
+        filtered_df = df[(df[column_name].notna()) & (~df[column_name].astype(str).str.match(regex_pattern))]
         
 
         if filtered_df.empty:
