@@ -2378,7 +2378,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
   """
 
   if isinstance(df, ps.DataFrame):
-      str_values = df[column_name].astype(str, errors='ignore').fillna('')
+      str_values = df[column_name].fillna('').astype(str)
       exceeding_mask = str_values.str.len() > max_length
       filtered_df = df[exceeding_mask]
       if len(filtered_df) == 0:
@@ -2398,8 +2398,8 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
 
   else:
       try:
-        #   str_values = df[column_name].astype(str, errors='ignore').fillna('')
-        str_values = df[column_name].fillna('').astype(str)
+          str_values = df[column_name].astype(str, errors='ignore').fillna('')
+        # str_values = df[column_name].fillna('').astype(str)
       except ValueError:
           return pd.Series([])
 
