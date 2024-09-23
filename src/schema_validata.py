@@ -2542,8 +2542,10 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
         non_null_mask = df[column_name].notna()
         pattern_match = df[non_null_mask][column_name].astype(str).str.match(regex_pattern)
         mismatch_mask = ~pattern_match
-        filtered_df = df[non_null_mask].loc[mismatch_mask]
+        filtered_df = df[non_null_mask][mismatch_mask]
+
         
+
         if filtered_df.empty:
             return pd.Series([])  # Return an empty Series if filtered_df is empty
 
