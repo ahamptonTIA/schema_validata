@@ -2307,55 +2307,23 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
 #---------------------------------------------------------------------------------- 
 
+
 def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
-    """
-    Identifies values in a DataFrame column that are not present in a list of allowed values.
+    new_columns = {
+        "Error_Type": "Unallowed Value",
+        "Sheet_Row": df.index + 2,  # Use original index for sheet row
+        "Column_Name": column_name,
+        "Error_Value": df[column_name],
+        "Lookup_Column": unique_column if unique_column in df.columns else None,
+        "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+    }
 
-    Parameters:
-    ----------
-    df : pd.DataFrame or ps.DataFrame
-        The DataFrame to check.
-    column_name : str
-        The name of the column to check.
-    allowed_values : list
-        A list of allowed values.
-    unique_column : str, optional
-        The name of the column containing unique values.
+    # Use a list comprehension to check for values not in allowed_values
+    filtered_df = df[~df[column_name].astype(str).apply(lambda x: x in allowed_values)]
 
-    Returns:
-    -------
-    pd.Series or pyspark.sql.pandas.Series:
-        A Series containing dictionaries, each with 'Sheet Row',
-        'Error Type', 'Column Name', the unique column value
-        (if provided), and the actual value from the 'column_name'.
-    """
+    # Create a new DataFrame with the filtered rows and additional columns
+    return pd.DataFrame(new_columns).loc[filtered_df.index]
 
-    if isinstance(df, ps.DataFrame):
-        # For Polars DataFrames, use a dictionary comprehension for efficiency
-        new_columns = {
-            "Error_Type": "Unallowed Value",
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
-
-        return pd.DataFrame(new_columns)[~df[column_name].isin(allowed_values) & ~df[column_name].isnull()]
-
-    else:
-        # For Pandas DataFrames, use a dictionary comprehension for clarity
-        new_columns = {
-            "Error_Type": "Unallowed Value",
-            "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
-
-        return pd.DataFrame(new_columns)[~df[column_name].isin(allowed_values) & ~df[column_name].isnull()]
-  
 #---------------------------------------------------------------------------------- 
 
 def value_errors_length(df, column_name, max_length, unique_column=None):
