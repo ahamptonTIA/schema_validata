@@ -2180,42 +2180,28 @@ def value_errors_nulls(df, column_name, unique_column=None):
     """
 
     if isinstance(df, ps.DataFrame):
-        null_mask = df[column_name].isnull()
-        filtered_df = df[null_mask]
-        if len(filtered_df) == 0:
-            return pd.Series([])
+        # For Polars DataFrames, use a dictionary comprehension for efficiency
+        new_columns = {
+            "Error_Type": "Null Value",
+            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
-        # Create a new DataFrame with additional columns
-        new_df = filtered_df.assign(
-            Error_Type="Null Value",
-            Sheet_Row=filtered_df.index + 2,
-            Column_Name=column_name,
-            Lookup_Column=unique_column if unique_column in df.columns else None,
-            Lookup_Value=df[unique_column] if unique_column in df.columns else None
-        )
-
-        return new_df.to_pandas()
+        return pd.DataFrame(new_columns)[df[column_name].isnull()]
 
     else:
-        null_mask = df[column_name].isnull()
-        # Vectorize operations within the loop (consider `.where` for null values)
-        error_type = "Null Value"
-        sheet_row = df["name"] + 2
-        column_name = lit(column_name)
-        error_value = df[column_name]
-        lookup_column = df[unique_column] if unique_column in df.columns else None
-        lookup_value = df[unique_column] if unique_column in df.columns else None
+        # For Pandas DataFrames, use a dictionary comprehension for clarity
+        new_columns = {
+            "Error_Type": "Null Value",
+            "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
-        results = df[null_mask].assign(
-            Error_Type=error_type,
-            Sheet_Row=sheet_row,
-            Column_Name=column_name,
-            Error_Value=error_value,
-            Lookup_Column=lookup_column,
-            Lookup_Value=lookup_value
-        )
-
-        return results
+        return pd.DataFrame(new_columns)[df[column_name].isnull()]
     
 #---------------------------------------------------------------------------------- 
 
@@ -2243,183 +2229,188 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     """
 
     if isinstance(df, ps.DataFrame):
-        with ps.option_context('compute.ops_on_diff_frames', True):
-            null_mask = df[column_name].isnull()
-            duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
-            filtered_df = df[duplicate_mask]
+        # For Polars DataFrames, use a dictionary comprehension for efficiency
+        new_columns = {
+            "Error_Type": "Duplicate Value",
+            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
-            if len(filtered_df) == 0:
-                return ps.Series([])
-
-            # Create a new DataFrame with additional columns
-            new_df = filtered_df.assign(
-                Error_Type="Duplicate Value",
-                Sheet_Row=filtered_df.index + 2,
-                Column_Name=column_name,
-                Error_Value=filtered_df[column_name],
-                Lookup_Column=unique_column if unique_column in df.columns else None,
-                Lookup_Value=filtered_df[unique_column] if unique_column in df.columns else None
-            )
-
-            return new_df.to_pandas()
+        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
 
     else:
-        null_mask = df[column_name].isnull()
-        duplicate_mask = df[column_name].duplicated(keep=False) & ~null_mask
-        results = []
-        for row_index, row in df[duplicate_mask].iterrows():
-            output_dict = {
-                'Sheet Row': row_index + 2,
-                'Error Type': 'Duplicate Value',
-                'Column Name': column_name,
-                'Error Value': row[column_name],
-            }
+        # For Pandas DataFrames, use a dictionary comprehension for clarity
+        new_columns = {
+            "Error_Type": "Duplicate Value",
+            "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
-            if unique_column and unique_column in df.columns:
-                output_dict["Lookup Column"] = unique_column
-                output_dict["Lookup Value"] = row[unique_column]
+        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]def value_errors_duplicates(df, column_name, unique_column=None):
+    """
+    Identifies duplicate values in a DataFrame column and returns their row indices,
+    unique values (if provided), and the actual values from
+    the column, along with error type and column name.
 
-            results.append(output_dict)
+    Parameters:
+    ----------
+    df : pd.DataFrame or ps.DataFrame
+        The DataFrame to check.
+    column_name : str
+        The name of the column to check for duplicates.
+    unique_column : str, optional
+        The name of the column containing unique values.
 
-        return pd.Series(results)
+    Returns:
+    -------
+    pd.Series or ps.Series:
+        A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
+        'Column Name', the unique column value (if provided), and the actual
+        value from the 'column_name'.
+    """
+
+    if isinstance(df, ps.DataFrame):
+        # For Polars DataFrames, use a dictionary comprehension for efficiency
+        new_columns = {
+            "Error_Type": "Duplicate Value",
+            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
+
+        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
+
+    else:
+        # For Pandas DataFrames, use a dictionary comprehension for clarity
+        new_columns = {
+            "Error_Type": "Duplicate Value",
+            "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
+
+        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
 
 #---------------------------------------------------------------------------------- 
 
 def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
-  """
-  Identifies values in a DataFrame column that are not present in a list of allowed values.
+    """
+    Identifies values in a DataFrame column that are not present in a list of allowed values.
 
-  Parameters:
-  ----------
-  df : pd.DataFrame or ps.DataFrame
-      The DataFrame to check.
-  column_name : str
-      The name of the column to check.
-  allowed_values : list
-      A list of allowed values.
-  unique_column : str, optional
-      The name of the column containing unique values.
+    Parameters:
+    ----------
+    df : pd.DataFrame or ps.DataFrame
+        The DataFrame to check.
+    column_name : str
+        The name of the column to check.
+    allowed_values : list
+        A list of allowed values.
+    unique_column : str, optional
+        The name of the column containing unique values.
 
-  Returns:
-  -------
-  pd.Series or pyspark.sql.pandas.Series:
-      A Series containing dictionaries, each with 'Sheet Row',
-      'Error Type', 'Column Name', the unique column value
-      (if provided), and the actual value from the 'column_name'.
-  """
+    Returns:
+    -------
+    pd.Series or pyspark.sql.pandas.Series:
+        A Series containing dictionaries, each with 'Sheet Row',
+        'Error Type', 'Column Name', the unique column value
+        (if provided), and the actual value from the 'column_name'.
+    """
 
-  if isinstance(df, ps.DataFrame):
-      null_mask = df[column_name].isnull()
-      allowed_mask = df[column_name].isin(allowed_values)
-      filtered_df = df[~allowed_mask & ~null_mask]
-      if len(filtered_df) == 0:
-          return pd.Series([])  # Return an empty Series if filtered_df is empty
+    if isinstance(df, ps.DataFrame):
+        # For Polars DataFrames, use a dictionary comprehension for efficiency
+        new_columns = {
+            "Error_Type": "Unallowed Value",
+            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
-      # Create a new DataFrame with additional columns
-      new_df = filtered_df.assign(
-          Error_Type="Unallowed Value",
-          Sheet_Row=filtered_df.index + 2,
-          Column_Name=column_name,
-          Error_Value=filtered_df[column_name],  # Corrected here
-          Lookup_Column=unique_column if unique_column in df.columns else None,
-          Lookup_Value=df[unique_column] if unique_column in df.columns else None
-      )
+        return pd.DataFrame(new_columns)[~df[column_name].isin(allowed_values) & ~df[column_name].isnull()]
 
-      return new_df.to_pandas()
+    else:
+        # For Pandas DataFrames, use a dictionary comprehension for clarity
+        new_columns = {
+            "Error_Type": "Unallowed Value",
+            "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
-  else:
-      null_mask = df[column_name].isnull()
-      allowed_mask = df[column_name].isin(allowed_values)
-      filtered_df = df[~allowed_mask & ~null_mask]
-      results = []
-      for row_index, row in filtered_df.iterrows():
-          output_dict = {
-              'Sheet Row': row_index + 2,
-              'Error Type': 'Unallowed Value',
-              'Column Name': column_name,
-              'Error Value': row[column_name],
-          }
-
-          if unique_column and unique_column in df.columns:
-              output_dict["Lookup Column"] = unique_column
-              output_dict["Lookup Value"] = row[unique_column]
-
-          results.append(output_dict)
-
-      return pd.Series(results)
+        return pd.DataFrame(new_columns)[~df[column_name].isin(allowed_values) & ~df[column_name].isnull()]
   
 #---------------------------------------------------------------------------------- 
 
 def value_errors_length(df, column_name, max_length, unique_column=None):
-  """
-  Identifies values in a DataFrame column that exceed a specified maximum length,
-  handling any data type by converting values to strings. Returns no results
-  if all values can be converted to strings within the limit.
+    """
+    Identifies values in a DataFrame column that exceed a specified maximum length,
+    handling any data type by converting values to strings. Returns no results
+    if all values can be converted to strings within the limit.
 
-  Parameters:
-  ----------
-  df : pd.DataFrame or ps.DataFrame
-      The DataFrame to check.
-  column_name : str
-      The name of the column to check.
-  max_length : int
-      The maximum allowed length for values.
-  unique_column : str, optional
-      The name of the column containing unique values.
+    Parameters:
+    ----------
+    df : pd.DataFrame or ps.DataFrame
+        The DataFrame to check.
+    column_name : str
+        The name of the column to check.
+    max_length : int
+        The maximum allowed length for values.
+    unique_column : str, optional
+        The name of the column containing unique values.
 
-  Returns:
-  -------
-  pd.Series or pyspark.sql.pandas.Series:
-      A Series containing dictionaries, each with 'Sheet Row',
-      'Error Type', 'Column Name', the unique column value
-      (if provided), and the actual value from the 'column_name'.
-      Returns an empty Series if all values can be converted to
-      strings within the limit.
-  """
+    Returns:
+    -------
+    pd.Series or pyspark.sql.pandas.Series:
+        A Series containing dictionaries, each with 'Sheet Row',
+        'Error Type', 'Column Name', the unique column value
+        (if provided), and the actual value from the 'column_name'.
+        Returns an empty Series if all values can be converted to
+        strings within the limit.
+    """
 
-  if isinstance(df, ps.DataFrame):
-      str_values = df[column_name].fillna('').astype(str)
-      exceeding_mask = str_values.str.len() > max_length
-      filtered_df = df[exceeding_mask]
-      if len(filtered_df) == 0:
-          return pd.Series([])  # Return an empty Series if filtered_df is empty
+    if isinstance(df, ps.DataFrame):
+        # For Polars DataFrames, use a dictionary comprehension for efficiency
+        new_columns = {
+            "Error_Type": f"Value Exceeds Max Length ({max_length})",
+            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
-      # Create a new DataFrame with additional columns
-      new_df = filtered_df.assign(
-          Error_Type=f"Value Exceeds Max Length ({max_length})",
-          Sheet_Row=filtered_df.index + 2,
-          Column_Name=column_name,
-          Error_Value=filtered_df[column_name],  # Corrected here
-          Lookup_Column=unique_column if unique_column in df.columns else None,
-          Lookup_Value=df[unique_column] if unique_column in df.columns else None
-      )
+        return pd.DataFrame(new_columns)[df[column_name].astype(str).str.len() > max_length]
 
-      return new_df.to_pandas()
+    else:
+        # For Pandas DataFrames, use a dictionary comprehension for clarity
+        try:
+            str_values = df[column_name].astype(str, errors='ignore').fillna('')
+        except ValueError:
+            return pd.Series([])
 
-  else:
-      try:
-          str_values = df[column_name].astype(str, errors='ignore').fillna('')
-        # str_values = df[column_name].fillna('').astype(str)
-      except ValueError:
-          return pd.Series([])
+        new_columns = {
+            "Error_Type": f"Value Exceeds Max Length ({max_length})",
+            "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
-      exceeding_mask = str_values.str.len() > max_length
-      results = []
-      for row_index, row in df[exceeding_mask].iterrows():
-          output_dict = {
-              'Sheet Row': row_index + 2,
-              'Error Type': f'Value Exceeds Max Length ({max_length})',
-              'Column Name': column_name,
-              'Error Value': row[column_name],
-          }
-
-          if unique_column and unique_column in df.columns:
-              output_dict["Lookup Column"] = unique_column
-              output_dict["Lookup Value"] = row[unique_column]
-
-          results.append(output_dict)
-
-      return pd.Series(results)
+        return pd.DataFrame(new_columns)[str_values.str.len() > max_length]
 
 #---------------------------------------------------------------------------------- 
 
@@ -2450,69 +2441,57 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
     """
 
     if isinstance(df, ps.DataFrame):
-        try:
-            numeric_column = df[column_name].astype(float)
-        except (ValueError, TypeError):
-            pass
+        # For Polars DataFrames, use a dictionary comprehension for efficiency
+        new_columns = {
+            "Error_Type": None,
+            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
         if test_type not in ("min", "max"):
             raise ValueError("test_type must be either 'min' or 'max'")
 
-        error_type = None
         if test_type == "min":
-            mask = numeric_column < value
-            error_type = f"Below Minimum Allowed Value ({value})"
+            mask = df[column_name].astype(float) < value
+            new_columns["Error_Type"] = f"Below Minimum Allowed Value ({value})"
         elif test_type == "max":
-            mask = numeric_column > value
-            error_type = f"Exceeds Maximum Allowed Value ({value})"
+            mask = df[column_name].astype(float) > value
+            new_columns["Error_Type"] = f"Exceeds Maximum Allowed Value ({value})"
 
-        filtered_df = df.where(mask)
-        if len(filtered_df) == 0:
-            return pd.Series([])
-
-        # Create a new DataFrame with additional columns
-        new_df = filtered_df.assign(
-            Error_Type=error_type,
-            Sheet_Row=filtered_df.index + 2,
-            Column_Name=column_name,
-            Error_Value=filtered_df[column_name],
-            Lookup_Column=unique_column if unique_column in df.columns else None,
-            Lookup_Value=df[unique_column] if unique_column in df.columns else None
-        )
-
-        return new_df.to_pandas()
+        return pd.DataFrame(new_columns)[mask]
 
     else:
-        numeric_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
-        numeric_column = pd.to_numeric(numeric_column, errors='coerce')
+        # For Pandas DataFrames, use a dictionary comprehension for clarity
+        cleaned_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
+        numeric_column = pd.to_numeric(cleaned_column, errors='coerce')
 
         if test_type not in ("min", "max"):
             raise ValueError("test_type must be either 'min' or 'max'")
 
         if pd.api.types.is_numeric_dtype(numeric_column):
-            error_type = None
+            new_columns = {
+                "Error_Type": None,
+                "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
+                "Column_Name": column_name,
+                "Error_Value": df[column_name],
+                "Lookup_Column": unique_column if unique_column in df.columns else None,
+                "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+            }
+
             if test_type == "min":
                 mask = numeric_column < value
-                error_type = f"Below Minimum Allowed Value ({value})"
+                new_columns["Error_Type"] = f"Below Minimum Allowed Value ({value})"
             elif test_type == "max":
                 mask = numeric_column > value
-                error_type = f"Exceeds Maximum Allowed Value ({value})"
+                new_columns["Error_Type"] = f"Exceeds Maximum Allowed Value ({value})"
 
-            results = []
-            for row_index, row in df[mask].iterrows():
-                output_dict = {
-                    "Sheet Row": row_index + 2,
-                    "Error Type": error_type,
-                    "Column Name": column_name,
-                    "Error Value": row[column_name],
-                }
-                if unique_column and unique_column in df.columns:
-                    output_dict["Lookup Column"] = unique_column
-                    output_dict["Lookup Value"] = row[unique_column]
-                results.append(output_dict)
+            return pd.DataFrame(new_columns)[mask]
 
-        return pd.Series(results)
-
+        else:
+            return pd.Series([])  # No results for non-numeric columns
 #---------------------------------------------------------------------------------- 
 
 def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=None):
@@ -2538,50 +2517,39 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
+
     if isinstance(df, ps.DataFrame):
+        # For Polars DataFrames, use a dictionary comprehension for efficiency
+        new_columns = {
+            "Error_Type": "Invalid Value Formatting",
+            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Column_Name": column_name,
+            "Error_Value": df[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        }
 
-        # Reset index to ensure consistent indexing
-        # df = df.reset_index(drop=True)
-
-        # Filter based on non-null values and pattern mismatch
-        filtered_df = df[(df[column_name].notna()) & (~df[column_name].astype(str).str.match(regex_pattern))]
-        
-
-        if filtered_df.empty:
-            return pd.Series([])  # Return an empty Series if filtered_df is empty
-
-        # Create a new DataFrame with additional columns
-        new_df = filtered_df.assign(
-            Error_Type='Invalid Value Formatting',
-            Sheet_Row=filtered_df.index + 2,
-            Column_Name=column_name,
-            Error_Value=filtered_df[column_name],
-            Lookup_Column=unique_column if unique_column in df.columns else None,
-            Lookup_Value=df[unique_column] if unique_column in df.columns else None
-        )
-
-        return new_df.to_pandas()
+        return pd.DataFrame(new_columns)[
+            (df[column_name].notna()) &
+            (~df[column_name].astype(str).str.match(regex_pattern))
+        ]
 
     else:
-        # Handle pandas case
+        # For Pandas DataFrames, use a dictionary comprehension for clarity
         non_null_mask = df[column_name].notnull()
         pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
         mismatch_mask = ~pattern_match
-        results = []
-        for row_index, row in df[non_null_mask & mismatch_mask].iterrows():
-            output_dict = {
-                'Sheet Row': row_index + 2,
-                'Error Type': 'Invalid Value Formatting',
-                'Column Name': column_name,
-                'Error Value': row[column_name],
-            }
-            if unique_column and unique_column in df.columns:
-                output_dict["Lookup Column"] = unique_column
-                output_dict["Lookup Value"] = row[unique_column]
-            results.append(output_dict)
 
-        return pd.Series(results)
-    
+        new_columns = {
+            "Error_Type": "Invalid Value Formatting",
+            "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
+            "Column Name": column_name,
+            "Error Value": df[column_name],
+            "Lookup Column": unique_column if unique_column in df.columns else None,
+            "Lookup Value": df[unique_column] if unique_column in df.columns else None
+        }
+
+        return pd.DataFrame(new_columns)[non_null_mask & mismatch_mask]
 #---------------------------------------------------------------------------------- 
 def get_value_errors(dataset_path, schema_errors, data_dict, 
                      schema_mapping, ignore_errors=['allow_null']):
