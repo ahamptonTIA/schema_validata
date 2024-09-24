@@ -2252,7 +2252,11 @@ def value_errors_duplicates(df, column_name, unique_column=None):
             "Lookup_Value": df[unique_column] if unique_column in df.columns else None
         }
 
-        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]def value_errors_duplicates(df, column_name, unique_column=None):
+        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
+
+#---------------------------------------------------------------------------------- 
+    
+def value_errors_duplicates(df, column_name, unique_column=None):
     """
     Identifies duplicate values in a DataFrame column and returns their row indices,
     unique values (if provided), and the actual values from
