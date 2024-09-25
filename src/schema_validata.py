@@ -2411,55 +2411,44 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
     """
 
     if isinstance(df, ps.DataFrame):
-        if test_type not in ("min", "max"):
-            raise ValueError("test_type must be either 'min' or 'max'")
+        # Create a copy of the DataFrame
+        df_copy = df.to_pandas()
+    else:
+        df_copy = df
 
+    # Select only the necessary columns
+    if unique_column and unique_column in df_copy.columns:
+        filtered_df = df_copy[[column_name, unique_column]]
+    else:
+        filtered_df = df_copy[[column_name]]
+
+    cleaned_column = filtered_df[column_name].replace(r'^\s+$', pd.NA, regex=True)
+    numeric_column = pd.to_numeric(cleaned_column, errors='coerce')
+
+    if test_type not in ("min", "max"):
+        raise ValueError("test_type must be either 'min' or 'max'")
+
+    if pd.api.types.is_numeric_dtype(numeric_column):
         if test_type == "min":
-            mask = df[column_name].astype(float) < value
+            mask = numeric_column < value
             error_type = f"Below Minimum Allowed Value ({value})"
         elif test_type == "max":
-            mask = df[column_name].astype(float) > value
+            mask = numeric_column > value
             error_type = f"Exceeds Maximum Allowed Value ({value})"
 
         new_columns = {
             "Error_Type": error_type,
-            "Sheet_Row": df.index.to_numpy() + 2,
+            "Sheet_Row": df_copy.index + 2,
             "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+            "Error_Value": df_copy[column_name],
+            "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
+            "Lookup_Value": df_copy[unique_column] if unique_column in df_copy.columns else None
         }
-        rtn_df = df[mask].assign(**new_columns)
-        return rtn_df[list(new_columns.keys())]
+
+        return pd.DataFrame(new_columns)[mask]
 
     else:
-        cleaned_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
-        numeric_column = pd.to_numeric(cleaned_column, errors='coerce')
-
-        if test_type not in ("min", "max"):
-            raise ValueError("test_type must be either 'min' or 'max'")
-
-        if pd.api.types.is_numeric_dtype(numeric_column):
-            if test_type == "min":
-                mask = numeric_column < value
-                error_type = f"Below Minimum Allowed Value ({value})"
-            elif test_type == "max":
-                mask = numeric_column > value
-                error_type = f"Exceeds Maximum Allowed Value ({value})"
-
-            new_columns = {
-                "Error_Type": error_type,
-                "Sheet_Row": df.index + 2,
-                "Column_Name": column_name,
-                "Error_Value": df[column_name],
-                "Lookup_Column": unique_column if unique_column in df.columns else None,
-                "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-            }
-
-            return pd.DataFrame(new_columns)[mask]
-
-        else:
-            return pd.DataFrame([])  # No results for non-numeric columns
+        return pd.DataFrame([])  # No results for non-numeric columns
         
 #---------------------------------------------------------------------------------- 
 
