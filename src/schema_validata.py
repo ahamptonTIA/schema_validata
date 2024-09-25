@@ -2205,8 +2205,6 @@ def value_errors_nulls(df, column_name, unique_column=None):
     
 #---------------------------------------------------------------------------------- 
 
-import pandas as pd
-
 def value_errors_duplicates(df, column_name, unique_column=None):
     """
     Identifies duplicate values in a DataFrame column and returns their row indices,
@@ -2215,7 +2213,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
     Parameters:
     ----------
-    df : pd.DataFrame
+    df : pd.DataFrame or ps.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check for duplicates.
@@ -2224,12 +2222,18 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
     Returns:
     -------
-    pd.DataFrame:
+    pd.DataFrame or ps.DataFrame:
         A DataFrame containing the identified errors.
     """
 
-    # Filter for duplicates, handling missing values
-    filtered_df = df[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
+    # Handle PySpark.pandas DataFrame
+    if isinstance(df, ps.DataFrame):
+        filtered_df = df[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
+        filtered_df = filtered_df.to_pandas()  # Convert to pandas for efficient processing
+
+    # Handle pandas DataFrame
+    else:
+        filtered_df = df[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
 
     # Create a list of dictionaries to store results (more memory-efficient)
     results = []
@@ -2244,6 +2248,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         }
         results.append(result_dict)
 
+    # Always return a pandas DataFrame
     return pd.DataFrame(results)
     
 #---------------------------------------------------------------------------------- 
