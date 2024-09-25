@@ -2228,82 +2228,17 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         value from the 'column_name'.
     """
 
-    if isinstance(df, ps.DataFrame):
-        # For Polars DataFrames, use a dictionary comprehension for efficiency
-        new_columns = {
-            "Error_Type": "Duplicate Value",
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
+    # For Pandas DataFrames, use a dictionary comprehension for clarity
+    new_columns = {
+        "Error_Type": "Duplicate Value",
+        'Sheet Row': df.index + 2,  # Use the original index
+        "Column_Name": column_name,
+        "Error_Value": df[column_name],
+        "Lookup_Column": unique_column if unique_column in df.columns else None,
+        "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+    }
 
-        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
-
-    else:
-        # For Pandas DataFrames, use a dictionary comprehension for clarity
-        new_columns = {
-            "Error_Type": "Duplicate Value",
-            "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
-
-        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
-
-#---------------------------------------------------------------------------------- 
-    
-def value_errors_duplicates(df, column_name, unique_column=None):
-    """
-    Identifies duplicate values in a DataFrame column and returns their row indices,
-    unique values (if provided), and the actual values from
-    the column, along with error type and column name.
-
-    Parameters:
-    ----------
-    df : pd.DataFrame or ps.DataFrame
-        The DataFrame to check.
-    column_name : str
-        The name of the column to check for duplicates.
-    unique_column : str, optional
-        The name of the column containing unique values.
-
-    Returns:
-    -------
-    pd.Series or ps.Series:
-        A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
-        'Column Name', the unique column value (if provided), and the actual
-        value from the 'column_name'.
-    """
-
-    if isinstance(df, ps.DataFrame):
-        # For Polars DataFrames, use a dictionary comprehension for efficiency
-        new_columns = {
-            "Error_Type": "Duplicate Value",
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
-
-        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
-
-    else:
-        # For Pandas DataFrames, use a dictionary comprehension for clarity
-        new_columns = {
-            "Error_Type": "Duplicate Value",
-            "Sheet_Row": df["name"] + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
-
-        return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
+    return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
 
 #---------------------------------------------------------------------------------- 
 
@@ -2329,7 +2264,6 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     pd.DataFrame:
         A pandas DataFrame containing the identified errors.
     """
-    original_indices = df.index.to_list()  # Store original indices
 
     # Ensure allowed values have the same data type as the column
     column_dtype = df[column_name].dtype
@@ -2350,12 +2284,13 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
 
     # Filter the DataFrame based on the string comparison
     filtered_df = df_copy[~df_copy[column_name].isin(allowed_values_set)]
+    del(df_copy)
 
     # Create a list of dictionaries to store the results
     results = []
     for index, row in filtered_df.iterrows():
         result_dict = {
-            'Sheet Row': original_indices[index] + 2,  # Use the original index
+            'Sheet Row': index + 2,  # Use the original index
             'Error Type': 'Unallowed Value',
             'Column Name': column_name,
             'Error Value': row[column_name]
