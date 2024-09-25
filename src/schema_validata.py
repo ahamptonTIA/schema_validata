@@ -15,7 +15,6 @@ import numpy as np                          # Library for numerical operations
 try:
     import pyspark
     import pyspark.pandas as ps             # Library for data manipulation and analysis with Spark
-    import pyspark.sql.functions as F
     spark_available = True
 except ImportError:
     print("pyspark.pandas is not available in the session.")
@@ -2227,15 +2226,16 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         A DataFrame containing the identified errors.
     """
     if isinstance(df, ps.DataFrame):
-        # Select only the necessary columns and convert to pandas
-        if unique_column and unique_column in df.columns:
-            filtered_df = df[[column_name, unique_column]]
-        else:
-            filtered_df = df[[column_name]]
-
-        filtered_df = filtered_df.to_pandas()
+        # Create a copy of the DataFrame
+        df_copy = df.to_pandas()
     else:
-        filtered_df = df
+        df_copy = df
+
+    # Select only the necessary columns
+    if unique_column and unique_column in df_copy.columns:
+        filtered_df = df_copy[[column_name, unique_column]]
+    else:
+        filtered_df = df_copy[[column_name]]
 
     # Filter for non-null values
     filtered_df = filtered_df[~filtered_df[column_name].isnull()]
@@ -2251,8 +2251,8 @@ def value_errors_duplicates(df, column_name, unique_column=None):
             'Sheet Row': index + 2,  # Use the original index
             "Column_Name": column_name,
             "Error_Value": row[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": row[unique_column] if unique_column in df.columns else None
+            "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
+            "Lookup_Value": row[unique_column] if unique_column in df_copy.columns else None
         }
         results.append(result_dict)
 
