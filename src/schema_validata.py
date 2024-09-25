@@ -2404,37 +2404,35 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 
     Returns:
     -------
-    pd.Series or pyspark.sql.pandas.Series:
-        A Series containing dictionaries, each with 'Sheet Row',
+    pd.DataFrame or ps.DataFrame:
+        A DataFrame containing dictionaries, each with 'Sheet Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
 
     if isinstance(df, ps.DataFrame):
-        # For Polars DataFrames, use a dictionary comprehension for efficiency
+        if test_type not in ("min", "max"):
+            raise ValueError("test_type must be either 'min' or 'max'")
+
+        if test_type == "min":
+            mask = df[column_name].astype(float) < value
+            error_type = f"Below Minimum Allowed Value ({value})"
+        elif test_type == "max":
+            mask = df[column_name].astype(float) > value
+            error_type = f"Exceeds Maximum Allowed Value ({value})"
+
         new_columns = {
-            "Error_Type": None,
-            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
+            "Error_Type": error_type,
+            "Sheet_Row": df.index.to_numpy() + 2,
             "Column_Name": column_name,
             "Error_Value": df[column_name],
             "Lookup_Column": unique_column if unique_column in df.columns else None,
             "Lookup_Value": df[unique_column] if unique_column in df.columns else None
         }
 
-        if test_type not in ("min", "max"):
-            raise ValueError("test_type must be either 'min' or 'max'")
-
-        if test_type == "min":
-            mask = df[column_name].astype(float) < value
-            new_columns["Error_Type"] = f"Below Minimum Allowed Value ({value})"
-        elif test_type == "max":
-            mask = df[column_name].astype(float) > value
-            new_columns["Error_Type"] = f"Exceeds Maximum Allowed Value ({value})"
-
-        return pd.DataFrame(new_columns)[mask]
+        return df[mask][list(new_columns.keys())]
 
     else:
-        # For Pandas DataFrames, use a dictionary comprehension for clarity
         cleaned_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
         numeric_column = pd.to_numeric(cleaned_column, errors='coerce')
 
@@ -2442,26 +2440,27 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
             raise ValueError("test_type must be either 'min' or 'max'")
 
         if pd.api.types.is_numeric_dtype(numeric_column):
+            if test_type == "min":
+                mask = numeric_column < value
+                error_type = f"Below Minimum Allowed Value ({value})"
+            elif test_type == "max":
+                mask = numeric_column > value
+                error_type = f"Exceeds Maximum Allowed Value ({value})"
+
             new_columns = {
-                "Error_Type": None,
-                "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
+                "Error_Type": error_type,
+                "Sheet_Row": df.index.to_numpy() + 2,
                 "Column_Name": column_name,
                 "Error_Value": df[column_name],
                 "Lookup_Column": unique_column if unique_column in df.columns else None,
                 "Lookup_Value": df[unique_column] if unique_column in df.columns else None
             }
 
-            if test_type == "min":
-                mask = numeric_column < value
-                new_columns["Error_Type"] = f"Below Minimum Allowed Value ({value})"
-            elif test_type == "max":
-                mask = numeric_column > value
-                new_columns["Error_Type"] = f"Exceeds Maximum Allowed Value ({value})"
-
             return pd.DataFrame(new_columns)[mask]
 
         else:
-            return pd.Series([])  # No results for non-numeric columns
+            return pd.DataFrame([])  # No results for non-numeric columns
+        
 #---------------------------------------------------------------------------------- 
 
 def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=None):
