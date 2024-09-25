@@ -2183,7 +2183,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
         # For Polars DataFrames, use a dictionary comprehension for efficiency
         new_columns = {
             "Error_Type": "Null Value",
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
             "Column_Name": column_name,
             "Lookup_Column": unique_column if unique_column in df.columns else None,
             "Lookup_Value": df[unique_column] if unique_column in df.columns else None
@@ -2195,7 +2195,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
         # For Pandas DataFrames, use a dictionary comprehension for clarity
         new_columns = {
             "Error_Type": "Null Value",
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
             "Column_Name": column_name,
             "Lookup_Column": unique_column if unique_column in df.columns else None,
             "Lookup_Value": df[unique_column] if unique_column in df.columns else None
@@ -2231,7 +2231,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     # For Pandas DataFrames, use a dictionary comprehension for clarity
     new_columns = {
         "Error_Type": "Duplicate Value",
-        'Sheet Row': df.index + 2,  # Use the original index
+        'Sheet Row': df.index.to_numpy() + 2,  # Use the original index
         "Column_Name": column_name,
         "Error_Value": df[column_name],
         "Lookup_Column": unique_column if unique_column in df.columns else None,
@@ -2336,7 +2336,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
         # For Polars DataFrames, use a dictionary comprehension for efficiency
         new_columns = {
             "Error_Type": f"Value Exceeds Max Length ({max_length})",
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
             "Column_Name": column_name,
             "Error_Value": df[column_name],
             "Lookup_Column": unique_column if unique_column in df.columns else None,
@@ -2354,7 +2354,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
 
         new_columns = {
             "Error_Type": f"Value Exceeds Max Length ({max_length})",
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
             "Column_Name": column_name,
             "Error_Value": df[column_name],
             "Lookup_Column": unique_column if unique_column in df.columns else None,
@@ -2395,7 +2395,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
         # For Polars DataFrames, use a dictionary comprehension for efficiency
         new_columns = {
             "Error_Type": None,
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
             "Column_Name": column_name,
             "Error_Value": df[column_name],
             "Lookup_Column": unique_column if unique_column in df.columns else None,
@@ -2425,7 +2425,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
         if pd.api.types.is_numeric_dtype(numeric_column):
             new_columns = {
                 "Error_Type": None,
-                "Sheet_Row": df.index + 2,  # Use original index for sheet row
+                "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
                 "Column_Name": column_name,
                 "Error_Value": df[column_name],
                 "Lookup_Column": unique_column if unique_column in df.columns else None,
@@ -2473,7 +2473,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
         # For Polars DataFrames, use a dictionary comprehension for efficiency
         new_columns = {
             "Error_Type": "Invalid Value Formatting",
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
             "Column_Name": column_name,
             "Error_Value": df[column_name],
             "Lookup_Column": unique_column if unique_column in df.columns else None,
@@ -2493,7 +2493,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
 
         new_columns = {
             "Error_Type": "Invalid Value Formatting",
-            "Sheet_Row": df.index + 2,  # Use original index for sheet row
+            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
             "Column Name": column_name,
             "Error Value": df[column_name],
             "Lookup Column": unique_column if unique_column in df.columns else None,
