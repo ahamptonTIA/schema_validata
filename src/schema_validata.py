@@ -15,6 +15,7 @@ import numpy as np                          # Library for numerical operations
 try:
     import pyspark
     import pyspark.pandas as ps             # Library for data manipulation and analysis with Spark
+    import pyspark.sql.functions as F
     spark_available = True
 except ImportError:
     print("pyspark.pandas is not available in the session.")
@@ -2225,20 +2226,21 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     pd.DataFrame or ps.DataFrame:
         A DataFrame containing the identified errors.
     """
-
     if isinstance(df, ps.DataFrame):
-        # Filter for non-null values (avoiding DataFrame operations)
-        filtered_indices = df[df[column_name].notnull()].rdd.map(lambda row: row.rowIndex()).collect()
-        filtered_df = df.filter(lambda row: row.rowIndex() in filtered_indices)
-
-        filtered_df = filtered_df.to_pandas()  # Convert to pandas for efficient processing
+        # Filter for non-null values
+        filtered_df = df.where(F.col(column_name).isNotNull())
 
         # Filter for duplicates
         filtered_df = filtered_df.dropDuplicates(subset=column_name, keep=False)
 
+        filtered_df = filtered_df.to_pandas()  # Convert to pandas for efficient processing
+
     else:
-        filtered_df = df.loc[~df[column_name].isnull()] \
-                    [df[column_name].duplicated(keep=False)]
+        # Filter for non-null values
+        filtered_df = df[~df[column_name].isnull()]
+
+        # Filter for duplicates
+        filtered_df = filtered_df[df[column_name].duplicated(keep=False)]
 
     # Create a list of dictionaries to store results (more memory-efficient)
     results = []
