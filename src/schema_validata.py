@@ -2179,29 +2179,16 @@ def value_errors_nulls(df, column_name, unique_column=None):
         'Column Name', and the unique column value (if provided).
     """
 
-    if isinstance(df, ps.DataFrame):
-        # For Polars DataFrames, use a dictionary comprehension for efficiency
-        new_columns = {
-            "Error_Type": "Null Value",
-            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
+    # For Polars DataFrames, use a dictionary comprehension for efficiency
+    new_columns = {
+        "Error_Type": "Null Value",
+        "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
+        "Column_Name": column_name,
+        "Lookup_Column": unique_column if unique_column in df.columns else None,
+        "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+    }
 
-        return pd.DataFrame(new_columns)[df[column_name].isnull()]
-
-    else:
-        # For Pandas DataFrames, use a dictionary comprehension for clarity
-        new_columns = {
-            "Error_Type": "Null Value",
-            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
-
-        return pd.DataFrame(new_columns)[df[column_name].isnull()]
+    return pd.DataFrame(new_columns)[df[column_name].isnull()]
     
 #---------------------------------------------------------------------------------- 
 
@@ -2477,37 +2464,32 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
     """
 
     if isinstance(df, ps.DataFrame):
-        # For Polars DataFrames, use a dictionary comprehension for efficiency
-        new_columns = {
-            "Error_Type": "Invalid Value Formatting",
-            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
-
-        return pd.DataFrame(new_columns)[
-            (df[column_name].notna()) &
-            (~df[column_name].astype(str).str.match(regex_pattern))
-        ]
-
+        # Create a copy of the DataFrame
+        df_copy = df.to_pandas()
     else:
-        # For Pandas DataFrames, use a dictionary comprehension for clarity
-        non_null_mask = df[column_name].notnull()
-        pattern_match = df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
-        mismatch_mask = ~pattern_match
+        df_copy = df
 
-        new_columns = {
-            "Error_Type": "Invalid Value Formatting",
-            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
-            "Column Name": column_name,
-            "Error Value": df[column_name],
-            "Lookup Column": unique_column if unique_column in df.columns else None,
-            "Lookup Value": df[unique_column] if unique_column in df.columns else None
-        }
+    # Select only the necessary columns
+    if unique_column and unique_column in df_copy.columns:
+        filtered_df = df_copy[[column_name, unique_column]]
+    else:
+        filtered_df = df_copy[[column_name]]
+    del(df_copy) 
+    non_null_mask = filtered_df[column_name].notnull()
+    pattern_match = filtered_df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
+    mismatch_mask = ~pattern_match
 
-        return pd.DataFrame(new_columns)[non_null_mask & mismatch_mask]
+    new_columns = {
+        "Error_Type": "Invalid Value Formatting",
+        "Sheet_Row": filtered_df.index + 2,  # Use original index for sheet row
+        "Column_Name": column_name,
+        "Error_Value": filtered_df[column_name],
+        "Lookup_Column": unique_column if unique_column in filtered_df.columns else None,
+        "Lookup_Value": filtered_df[unique_column] if unique_column in filtered_df.columns else None
+    }
+
+    return pd.DataFrame(new_columns)[non_null_mask & mismatch_mask]
+    
 #---------------------------------------------------------------------------------- 
 def get_value_errors(dataset_path, schema_errors, data_dict, 
                      schema_mapping, ignore_errors=['allow_null']):
