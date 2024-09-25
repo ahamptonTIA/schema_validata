@@ -2329,10 +2329,11 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     pd.DataFrame:
         A pandas DataFrame containing the identified errors.
     """
+    original_indices = df.index.to_list()  # Store original indices
 
     # Ensure allowed values have the same data type as the column
     column_dtype = df[column_name].dtype
-    allowed_values = pd.Series(allowed_values).astype(column_dtype)
+    allowed_values = pd.Series(allowed_values).astype(str)
 
     # Create a copy of the DataFrame with only the necessary columns
     df_copy = df[[column_name, unique_column]].copy() 
@@ -2354,7 +2355,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     results = []
     for index, row in filtered_df.iterrows():
         result_dict = {
-            'Sheet Row': df_copy.index[index] + 2,  # Use the original index
+            'Sheet Row': original_indices[index] + 2,  # Use the original index
             'Error Type': 'Unallowed Value',
             'Column Name': column_name,
             'Error Value': row[column_name]
