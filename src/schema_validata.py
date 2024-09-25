@@ -2429,8 +2429,8 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
             "Lookup_Column": unique_column if unique_column in df.columns else None,
             "Lookup_Value": df[unique_column] if unique_column in df.columns else None
         }
-
-        return df[mask][list(new_columns.keys())]
+        rtn_df = df[mask].assign(**new_columns)
+        return rtn_df[list(new_columns.keys())]
 
     else:
         cleaned_column = df[column_name].replace(r'^\s+$', pd.NA, regex=True)
@@ -2449,7 +2449,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 
             new_columns = {
                 "Error_Type": error_type,
-                "Sheet_Row": df.index.to_numpy() + 2,
+                "Sheet_Row": df.index + 2,
                 "Column_Name": column_name,
                 "Error_Value": df[column_name],
                 "Lookup_Column": unique_column if unique_column in df.columns else None,
