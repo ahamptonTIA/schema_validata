@@ -2229,9 +2229,11 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     if isinstance(df, ps.DataFrame):
         # Select only the necessary columns and convert to pandas
         if unique_column and unique_column in df.columns:
-            filtered_df = df[[column_name, unique_column]].to_pandas()
+            filtered_df = df[[column_name, unique_column]]
         else:
-            filtered_df = df[[column_name]].to_pandas()
+            filtered_df = df[[column_name]]
+
+        filtered_df = filtered_df.to_pandas()
     else:
         filtered_df = df
 
