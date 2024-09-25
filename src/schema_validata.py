@@ -2227,8 +2227,10 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         A DataFrame containing the identified errors.
     """
     if isinstance(df, ps.DataFrame):
-        # Filter for non-null values
-        filtered_df = df.where(F.col(column_name).isNotNull())
+        # Filter for non-null values using a boolean column
+        filtered_df = df.withColumn("is_not_null", F.col(column_name).isNotNull()) \
+                        .filter("is_not_null")  # Filter by the boolean column
+        del filtered_df["is_not_null"]  # Remove the temporary column
 
         # Filter for duplicates
         filtered_df = filtered_df.dropDuplicates(subset=column_name, keep=False)
