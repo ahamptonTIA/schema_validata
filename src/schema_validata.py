@@ -2307,22 +2307,65 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
 #---------------------------------------------------------------------------------- 
 
-
 def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
-    new_columns = {
-        "Error_Type": "Unallowed Value",
-        "Sheet_Row": df.index + 2,  # Use original index for sheet row
-        "Column_Name": column_name,
-        "Error_Value": df[column_name],
-        "Lookup_Column": unique_column if unique_column in df.columns else None,
-        "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-    }
+    """
+    Identifies values in a DataFrame column that are not in a given list
+    of allowed values, ensuring both the column and allowed values are strings.
+    Optionally returns a unique value.
 
-    # Use a list comprehension to check for values not in allowed_values
-    filtered_df = df[~df[column_name].astype(str).apply(lambda x: x in allowed_values)]
+    Parameters:
+    ----------
+    df : pd.DataFrame or pyspark.sql.DataFrame
+        The DataFrame to check.
+    column_name : str
+        The name of the column to check.
+    allowed_values : list
+        The list of allowed values.
+    unique_column : str, optional
+        The name of the column containing unique values.
 
-    # Create a new DataFrame with the filtered rows and additional columns
-    return pd.DataFrame(new_columns).loc[filtered_df.index]
+    Returns:
+    -------
+    pd.DataFrame:
+        A pandas DataFrame containing the identified errors.
+    """
+
+    # Ensure allowed values have the same data type as the column
+    column_dtype = df[column_name].dtype
+    allowed_values = pd.Series(allowed_values).astype(column_dtype)
+
+    # Create a copy of the DataFrame with only the necessary columns
+    df_copy = df[[column_name, unique_column]].copy() 
+
+    # Convert the column to strings for comparison
+    df_copy[column_name] = df_copy[column_name].astype(str)
+
+    # Ensure df_copy is a regular pandas DataFrame
+    if isinstance(df_copy, pyspark.sql.DataFrame):
+        df_copy = df_copy.to_pandas()
+
+    # Create a set of allowed values for efficient lookup
+    allowed_values_set = set(str(value) for value in allowed_values)
+
+    # Filter the DataFrame based on the string comparison
+    filtered_df = df_copy[~df_copy[column_name].isin(allowed_values_set)]
+
+    # Create a list of dictionaries to store the results
+    results = []
+    for index, row in filtered_df.iterrows():
+        result_dict = {
+            'Sheet Row': df_copy.index[index] + 2,  # Use the original index
+            'Error Type': 'Unallowed Value',
+            'Column Name': column_name,
+            'Error Value': row[column_name]
+        }
+        if unique_column:
+            result_dict["Lookup Column"] = unique_column
+            result_dict["Lookup Value"] = row[unique_column]
+        results.append(result_dict)
+
+    # Always return a pandas DataFrame
+    return pd.DataFrame(results)
 
 #---------------------------------------------------------------------------------- 
 
