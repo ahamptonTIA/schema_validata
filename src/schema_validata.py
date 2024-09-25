@@ -2227,13 +2227,15 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     """
 
     if isinstance(df, ps.DataFrame):
-        # Filter for non-null values
-        filtered_df = df[df[column_name].notnull()]
-
-        # Filter for duplicates
-        filtered_df = filtered_df[filtered_df[column_name].duplicated(keep=False)]
+        # Filter for non-null values (avoiding DataFrame operations)
+        filtered_indices = df[df[column_name].notnull()].rdd.map(lambda row: row.rowIndex()).collect()
+        filtered_df = df.filter(lambda row: row.rowIndex() in filtered_indices)
 
         filtered_df = filtered_df.to_pandas()  # Convert to pandas for efficient processing
+
+        # Filter for duplicates
+        filtered_df = filtered_df.dropDuplicates(subset=column_name, keep=False)
+
     else:
         filtered_df = df.loc[~df[column_name].isnull()] \
                     [df[column_name].duplicated(keep=False)]
