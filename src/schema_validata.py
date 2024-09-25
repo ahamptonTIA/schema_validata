@@ -2205,6 +2205,8 @@ def value_errors_nulls(df, column_name, unique_column=None):
     
 #---------------------------------------------------------------------------------- 
 
+import pandas as pd
+
 def value_errors_duplicates(df, column_name, unique_column=None):
     """
     Identifies duplicate values in a DataFrame column and returns their row indices,
@@ -2213,7 +2215,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
     Parameters:
     ----------
-    df : pd.DataFrame or ps.DataFrame
+    df : pd.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check for duplicates.
@@ -2222,24 +2224,28 @@ def value_errors_duplicates(df, column_name, unique_column=None):
 
     Returns:
     -------
-    pd.Series or ps.Series:
-        A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
-        'Column Name', the unique column value (if provided), and the actual
-        value from the 'column_name'.
+    pd.DataFrame:
+        A DataFrame containing the identified errors.
     """
 
-    # For Pandas DataFrames, use a dictionary comprehension for clarity
-    new_columns = {
-        "Error_Type": "Duplicate Value",
-        'Sheet Row': df.index.to_numpy() + 2,  # Use the original index
-        "Column_Name": column_name,
-        "Error_Value": df[column_name],
-        "Lookup_Column": unique_column if unique_column in df.columns else None,
-        "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-    }
+    # Filter for duplicates, handling missing values
+    filtered_df = df[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
 
-    return pd.DataFrame(new_columns)[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
+    # Create a list of dictionaries to store results (more memory-efficient)
+    results = []
+    for index, row in filtered_df.iterrows():
+        result_dict = {
+            "Error_Type": "Duplicate Value",
+            'Sheet Row': index + 2,  # Use the original index
+            "Column_Name": column_name,
+            "Error_Value": row[column_name],
+            "Lookup_Column": unique_column if unique_column in df.columns else None,
+            "Lookup_Value": row[unique_column] if unique_column in df.columns else None
+        }
+        results.append(result_dict)
 
+    return pd.DataFrame(results)
+    
 #---------------------------------------------------------------------------------- 
 
 def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
