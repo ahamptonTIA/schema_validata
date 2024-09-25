@@ -2226,14 +2226,17 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         A DataFrame containing the identified errors.
     """
 
-    # Handle PySpark.pandas DataFrame
     if isinstance(df, ps.DataFrame):
-        filtered_df = df[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
-        filtered_df = filtered_df.to_pandas()  # Convert to pandas for efficient processing
+        # Filter for non-null values
+        filtered_df = df[df[column_name].notnull()]
 
-    # Handle pandas DataFrame
+        # Filter for duplicates
+        filtered_df = filtered_df[filtered_df[column_name].duplicated(keep=False)]
+
+        filtered_df = filtered_df.to_pandas()  # Convert to pandas for efficient processing
     else:
-        filtered_df = df[df[column_name].duplicated(keep=False) & ~df[column_name].isnull()]
+        filtered_df = df.loc[~df[column_name].isnull()] \
+                    [df[column_name].duplicated(keep=False)]
 
     # Create a list of dictionaries to store results (more memory-efficient)
     results = []
