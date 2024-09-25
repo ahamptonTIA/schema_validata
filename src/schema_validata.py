@@ -2223,7 +2223,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         filtered_df = df_copy[[column_name, unique_column]]
     else:
         filtered_df = df_copy[[column_name]]
-
+    del(df_copy)
     # Filter for non-null values
     filtered_df = filtered_df[~filtered_df[column_name].isnull()]
 
@@ -2238,8 +2238,8 @@ def value_errors_duplicates(df, column_name, unique_column=None):
             'Sheet Row': index + 2,  # Use the original index
             "Column_Name": column_name,
             "Error_Value": row[column_name],
-            "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
-            "Lookup_Value": row[unique_column] if unique_column in df_copy.columns else None
+            "Lookup_Column": unique_column if unique_column in filtered_df.columns else None,
+            "Lookup_Value": row[unique_column] if unique_column in filtered_df.columns else None
         }
         results.append(result_dict)
 
@@ -2309,6 +2309,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     # Always return a pandas DataFrame
     return pd.DataFrame(results)
 
+
 #---------------------------------------------------------------------------------- 
 
 def value_errors_length(df, column_name, max_length, unique_column=None):
@@ -2339,36 +2340,33 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
     """
 
     if isinstance(df, ps.DataFrame):
-        # For Polars DataFrames, use a dictionary comprehension for efficiency
-        new_columns = {
-            "Error_Type": f"Value Exceeds Max Length ({max_length})",
-            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
-
-        return pd.DataFrame(new_columns)[df[column_name].astype(str).str.len() > max_length]
-
+        # Create a copy of the DataFrame
+        df_copy = df.to_pandas()
     else:
-        # For Pandas DataFrames, use a dictionary comprehension for clarity
-        try:
-            str_values = df[column_name].astype(str, errors='ignore').fillna('')
-        except ValueError:
-            return pd.Series([])
+        df_copy = df
 
-        new_columns = {
-            "Error_Type": f"Value Exceeds Max Length ({max_length})",
-            "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
-            "Column_Name": column_name,
-            "Error_Value": df[column_name],
-            "Lookup_Column": unique_column if unique_column in df.columns else None,
-            "Lookup_Value": df[unique_column] if unique_column in df.columns else None
-        }
+    # Select only the necessary columns
+    if unique_column and unique_column in df_copy.columns:
+        filtered_df = df_copy[[column_name, unique_column]]
+    else:
+        filtered_df = df_copy[[column_name]]
 
-        return pd.DataFrame(new_columns)[str_values.str.len() > max_length]
+    try:
+        str_values = filtered_df[column_name].astype(str, errors='ignore').fillna('')
+    except ValueError:
+        return pd.Series([])
 
+    new_columns = {
+        "Error_Type": f"Value Exceeds Max Length ({max_length})",
+        "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
+        "Column_Name": column_name,
+        "Error_Value": filtered_df[column_name],
+        "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
+        "Lookup_Value": filtered_df[unique_column] if unique_column in df_copy.columns else None
+    }
+
+    return pd.DataFrame(new_columns)[str_values.str.len() > max_length]
+    
 #---------------------------------------------------------------------------------- 
 
 def value_errors_out_of_range(df, column_name, test_type, value, unique_column=None):
