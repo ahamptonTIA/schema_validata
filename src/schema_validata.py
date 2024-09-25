@@ -2227,22 +2227,19 @@ def value_errors_duplicates(df, column_name, unique_column=None):
         A DataFrame containing the identified errors.
     """
     if isinstance(df, ps.DataFrame):
-        # Filter for non-null values using a boolean column
-        filtered_df = df.withColumn("is_not_null", F.col(column_name).isNotNull()) \
-                        .filter("is_not_null")  # Filter by the boolean column
-        del filtered_df["is_not_null"]  # Remove the temporary column
-
-        # Filter for duplicates
-        filtered_df = filtered_df.dropDuplicates(subset=column_name, keep=False)
-
-        filtered_df = filtered_df.to_pandas()  # Convert to pandas for efficient processing
-
+        # Select only the necessary columns and convert to pandas
+        if unique_column and unique_column in df.columns:
+            filtered_df = df[[column_name, unique_column]].to_pandas()
+        else:
+            filtered_df = df[[column_name]].to_pandas()
     else:
-        # Filter for non-null values
-        filtered_df = df[~df[column_name].isnull()]
+        filtered_df = df
 
-        # Filter for duplicates
-        filtered_df = filtered_df[df[column_name].duplicated(keep=False)]
+    # Filter for non-null values
+    filtered_df = filtered_df[~filtered_df[column_name].isnull()]
+
+    # Filter for duplicates
+    filtered_df = filtered_df[filtered_df[column_name].duplicated(keep=False)]
 
     # Create a list of dictionaries to store results (more memory-efficient)
     results = []
