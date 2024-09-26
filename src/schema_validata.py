@@ -2324,9 +2324,6 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     # Convert the column to strings for comparison
     df_copy[column_name] = df_copy[column_name].astype(str)
 
-    # Ensure df_copy is a regular pandas DataFrame
-    if isinstance(df_copy, pyspark.sql.DataFrame):
-        df_copy = df_copy.to_pandas()
 
     # Create a set of allowed values for efficient lookup
     allowed_values_set = set(str(value) for value in allowed_values)
