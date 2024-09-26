@@ -2174,22 +2174,25 @@ def subset_error_df(df, column_name, unique_column=None):
     Returns:
     -------
     pd.DataFrame:
-        A DataFrame containing only the selected columns.
+        A regular Pandas DataFrame containing only the selected columns.
     """
 
     # Ensure column_name exists in the DataFrame
     if column_name not in df.columns:
         raise ValueError(f"Column '{column_name}' does not exist in the DataFrame.")
 
-    # Convert to Pandas DataFrame if necessary, using to_pandas_on_spark for efficiency
+    # Convert to Pandas DataFrame if necessary, using .loc for efficiency
     if isinstance(df, ps.DataFrame):
-        df = df.to_pandas_on_spark()
-
-    # Select only the necessary columns
-    if unique_column and unique_column in df.columns:
-        return df[[column_name, unique_column]]
+        columns = [column_name]
+        if unique_column and unique_column in df.columns:
+            columns.append(unique_column)
+        return df.loc[columns].to_pandas()
     else:
-        return df[[column_name]]
+        # Select only the necessary columns
+        if unique_column and unique_column in df.columns:
+            return df[[column_name, unique_column]]
+        else:
+            return df[[column_name]]
  
 #---------------------------------------------------------------------------------- 
 
