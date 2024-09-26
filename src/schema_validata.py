@@ -2265,15 +2265,9 @@ def value_errors_duplicates(df, column_name, unique_column=None):
                             column_name=column_name, 
                             unique_column=unique_column)
 
-    # Select only the necessary columns
-    if unique_column and unique_column in df_copy.columns:
-        filtered_df = df_copy[[column_name, unique_column]]
-    else:
-        filtered_df = df_copy[[column_name]]
-    del(df_copy)
     # Filter for non-null values
-    filtered_df = filtered_df[~filtered_df[column_name].isnull()]
-
+    filtered_df = df_copy[~df_copy[column_name].isnull()]
+    del(df_copy)
     # Filter for duplicates
     filtered_df = filtered_df[filtered_df[column_name].duplicated(keep=False)]
 
