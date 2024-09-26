@@ -2187,18 +2187,14 @@ def subset_error_df(df, column_name, unique_column=None):
     if column_name not in df.columns:
         raise ValueError(f"Column '{column_name}' does not exist in the DataFrame.")
 
-    # Convert to Pandas DataFrame if necessary, using .loc for efficiency
-    if isinstance(df, ps.DataFrame):
-        columns = [column_name]
-        if unique_column and unique_column in df.columns:
-            columns.append(unique_column)
+    columns = [column_name]
+    if column_name != unique_column and (unique_column and unique_column in df.columns):
+        columns.append(unique_column)
+    # Convert to Pandas DataFrame if necessary
+    if isinstance(df, ps.DataFrame):        
         return df[columns].to_pandas()
     else:
-        # Select only the necessary columns
-        if column_name != unique_column and (unique_column and unique_column in df.columns):
-            return df[[column_name, unique_column]]
-        else:
-            return df[[column_name]]
+        return df[columns]
  
 #---------------------------------------------------------------------------------- 
 
