@@ -2215,7 +2215,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
     Returns:
     -------
     pd.Series or pyspark.sql.pandas.Series:
-        A Series containing dictionaries, each with 'Sheet_Row', 'Error Type',
+        A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
         'Column Name', and the unique column value (if provided).
     """
     # Create a copy of the DataFrame with only the necessary columns
@@ -2226,7 +2226,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
     # For Polars DataFrames, use a dictionary comprehension for efficiency
     new_columns = {
         "Error_Type": "Null Value",
-        "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
+        "Sheet Row": df_copy.index + 2,  # Use original index for sheet row
         "Column_Name": column_name,
         "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
         "Lookup_Value": df_copy[unique_column] if unique_column in df_copy.columns else None
@@ -2271,12 +2271,12 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     results = []
     for index, row in filtered_df.iterrows():
         result_dict = {
-            "Error_Type": "Duplicate Value",
-            'Sheet_Row': index + 2,  # Use the original index
-            "Column_Name": column_name,
-            "Error_Value": row[column_name],
-            "Lookup_Column": unique_column if unique_column in filtered_df.columns else None,
-            "Lookup_Value": row[unique_column] if unique_column in filtered_df.columns else None
+            "Error Type": "Duplicate Value",
+            'Sheet Row': index + 2,  # Use the original index
+            "Column Name": column_name,
+            "Error Value": row[column_name],
+            "Lookup Column": unique_column if unique_column in filtered_df.columns else None,
+            "Lookup Value": row[unique_column] if unique_column in filtered_df.columns else None
         }
         results.append(result_dict)
 
@@ -2332,7 +2332,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     results = []
     for index, row in filtered_df.iterrows():
         result_dict = {
-            'Sheet_Row': index + 2,  # Use the original index
+            'Sheet Row': index + 2,  # Use the original index
             'Error Type': 'Unallowed Value',
             'Column Name': column_name,
             'Error Value': row[column_name]
@@ -2368,7 +2368,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
     Returns:
     -------
     pd.Series or pyspark.sql.pandas.Series:
-        A Series containing dictionaries, each with 'Sheet_Row',
+        A Series containing dictionaries, each with 'Sheet Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
         Returns an empty Series if all values can be converted to
@@ -2387,7 +2387,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
 
     new_columns = {
         "Error_Type": f"Value Exceeds Max Length ({max_length})",
-        "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
+        "Sheet Row": df_copy.index + 2,  # Use original index for sheet row
         "Column_Name": column_name,
         "Error_Value": df_copy[column_name],
         "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
@@ -2419,7 +2419,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
     Returns:
     -------
     pd.DataFrame or ps.DataFrame:
-        A DataFrame containing dictionaries, each with 'Sheet_Row',
+        A DataFrame containing dictionaries, each with 'Sheet Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
@@ -2445,7 +2445,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 
         new_columns = {
             "Error_Type": error_type,
-            "Sheet_Row": df_copy.index + 2,
+            "Sheet Row": df_copy.index + 2,
             "Column_Name": column_name,
             "Error_Value": df_copy[column_name],
             "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
@@ -2478,7 +2478,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
     Returns:
     -------
     pd.Series or ps.Series:
-        A Series containing dictionaries, each with 'Sheet_Row',
+        A Series containing dictionaries, each with 'Sheet Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
@@ -2494,7 +2494,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
 
     new_columns = {
         "Error_Type": "Invalid Value Formatting",
-        "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
+        "Sheet Row": df_copy.index + 2,  # Use original index for sheet row
         "Column_Name": column_name,
         "Error_Value": df_copy[column_name],
         "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
@@ -3192,7 +3192,7 @@ def schema_validation_to_xlsx(validation_results,
                 ve = ve.to_pandas()
             val_errs_df = pd.DataFrame(ve)
             try:
-                val_errs_df = val_errs_df.sort_values(by='Sheet_Row',
+                val_errs_df = val_errs_df.sort_values(by='Sheet Row',
                                                     ascending=True)
                 value_errors[ds] = val_errs_df
             except:
