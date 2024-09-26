@@ -2215,7 +2215,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
     Returns:
     -------
     pd.Series or pyspark.sql.pandas.Series:
-        A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
+        A Series containing dictionaries, each with 'Sheet_Row', 'Error Type',
         'Column Name', and the unique column value (if provided).
     """
     # Create a copy of the DataFrame with only the necessary columns
@@ -2272,7 +2272,7 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     for index, row in filtered_df.iterrows():
         result_dict = {
             "Error_Type": "Duplicate Value",
-            'Sheet Row': index + 2,  # Use the original index
+            'Sheet_Row': index + 2,  # Use the original index
             "Column_Name": column_name,
             "Error_Value": row[column_name],
             "Lookup_Column": unique_column if unique_column in filtered_df.columns else None,
@@ -2332,7 +2332,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     results = []
     for index, row in filtered_df.iterrows():
         result_dict = {
-            'Sheet Row': index + 2,  # Use the original index
+            'Sheet_Row': index + 2,  # Use the original index
             'Error Type': 'Unallowed Value',
             'Column Name': column_name,
             'Error Value': row[column_name]
@@ -2368,7 +2368,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
     Returns:
     -------
     pd.Series or pyspark.sql.pandas.Series:
-        A Series containing dictionaries, each with 'Sheet Row',
+        A Series containing dictionaries, each with 'Sheet_Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
         Returns an empty Series if all values can be converted to
@@ -2419,7 +2419,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
     Returns:
     -------
     pd.DataFrame or ps.DataFrame:
-        A DataFrame containing dictionaries, each with 'Sheet Row',
+        A DataFrame containing dictionaries, each with 'Sheet_Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
@@ -2478,7 +2478,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
     Returns:
     -------
     pd.Series or ps.Series:
-        A Series containing dictionaries, each with 'Sheet Row',
+        A Series containing dictionaries, each with 'Sheet_Row',
         'Error Type', 'Column Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
@@ -2568,7 +2568,6 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
                         value_errors_nulls(df, col, unique_column=unique_column)
                     )
                 if 'unique_value' in flagged_errs and 'unique_value' not in ignore_errors:
-                    print(f'{col}, {unique_column}')
                     sheet_v_errors.append(
                         value_errors_duplicates(df, col, unique_column=unique_column)
                     )
@@ -3193,7 +3192,7 @@ def schema_validation_to_xlsx(validation_results,
                 ve = ve.to_pandas()
             val_errs_df = pd.DataFrame(ve)
             try:
-                val_errs_df = val_errs_df.sort_values(by='Sheet Row',
+                val_errs_df = val_errs_df.sort_values(by='Sheet_Row',
                                                     ascending=True)
                 value_errors[ds] = val_errs_df
             except:
