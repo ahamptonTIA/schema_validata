@@ -2215,8 +2215,8 @@ def value_errors_nulls(df, column_name, unique_column=None):
     Returns:
     -------
     pd.Series or pyspark.sql.pandas.Series:
-        A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
-        'Column Name', and the unique column value (if provided).
+        A Series containing dictionaries, each with "Sheet_Row", "Error_Type",
+        'Column_Name', and the unique column value (if provided).
     """
     # Create a copy of the DataFrame with only the necessary columns
     df_copy = subset_error_df(df, 
@@ -2226,7 +2226,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
     # For Polars DataFrames, use a dictionary comprehension for efficiency
     new_columns = {
         "Error_Type": "Null Value",
-        "Sheet Row": df_copy.index + 2,  # Use original index for sheet row
+        "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
         "Column_Name": column_name,
         "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
         "Lookup_Value": df_copy[unique_column] if unique_column in df_copy.columns else None
@@ -2271,12 +2271,12 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     results = []
     for index, row in filtered_df.iterrows():
         result_dict = {
-            "Error Type": "Duplicate Value",
-            'Sheet Row': index + 2,  # Use the original index
-            "Column Name": column_name,
-            "Error Value": row[column_name],
-            "Lookup Column": unique_column if unique_column in filtered_df.columns else None,
-            "Lookup Value": row[unique_column] if unique_column in filtered_df.columns else None
+            "Error_Type": "Duplicate Value",
+            "Sheet_Row": index + 2,  # Use the original index
+            "Column_Name": column_name,
+            "Error_Value": row[column_name],
+            "Lookup_Column": unique_column if unique_column in filtered_df.columns else None,
+            "Lookup_Value" : row[unique_column] if unique_column in filtered_df.columns else None
         }
         results.append(result_dict)
 
@@ -2332,14 +2332,14 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     results = []
     for index, row in filtered_df.iterrows():
         result_dict = {
-            'Sheet Row': index + 2,  # Use the original index
-            'Error Type': 'Unallowed Value',
-            'Column Name': column_name,
-            'Error Value': row[column_name]
+            "Sheet_Row"Sheet_Row" index + 2,  # Use the original index
+            "Error_Type": 'Unallowed Value',
+            'Column_Name': column_name,
+            "Error_Value": row[column_name]
         }
         if unique_column:
-            result_dict["Lookup Column"] = unique_column
-            result_dict["Lookup Value"] = row[unique_column]
+            result_dict["Lookup_Column"] = unique_column
+            result_dict["Lookup_Value" ] = row[unique_column]
         results.append(result_dict)
 
     # Always return a pandas DataFrame
@@ -2368,8 +2368,8 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
     Returns:
     -------
     pd.Series or pyspark.sql.pandas.Series:
-        A Series containing dictionaries, each with 'Sheet Row',
-        'Error Type', 'Column Name', the unique column value
+        A Series containing dictionaries, each with "Sheet_Row",
+        "Error_Type", 'Column_Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
         Returns an empty Series if all values can be converted to
         strings within the limit.
@@ -2387,7 +2387,7 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
 
     new_columns = {
         "Error_Type": f"Value Exceeds Max Length ({max_length})",
-        "Sheet Row": df_copy.index + 2,  # Use original index for sheet row
+        "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
         "Column_Name": column_name,
         "Error_Value": df_copy[column_name],
         "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
@@ -2419,8 +2419,8 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
     Returns:
     -------
     pd.DataFrame or ps.DataFrame:
-        A DataFrame containing dictionaries, each with 'Sheet Row',
-        'Error Type', 'Column Name', the unique column value
+        A DataFrame containing dictionaries, each with "Sheet_Row",
+        "Error_Type", 'Column_Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
 
@@ -2445,7 +2445,7 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
 
         new_columns = {
             "Error_Type": error_type,
-            "Sheet Row": df_copy.index + 2,
+            "Sheet_Row": df_copy.index + 2,
             "Column_Name": column_name,
             "Error_Value": df_copy[column_name],
             "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
@@ -2478,8 +2478,8 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
     Returns:
     -------
     pd.Series or ps.Series:
-        A Series containing dictionaries, each with 'Sheet Row',
-        'Error Type', 'Column Name', the unique column value
+        A Series containing dictionaries, each with "Sheet_Row",
+        "Error_Type", 'Column_Name', the unique column value
         (if provided), and the actual value from the 'column_name'.
     """
 
@@ -2494,7 +2494,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
 
     new_columns = {
         "Error_Type": "Invalid Value Formatting",
-        "Sheet Row": df_copy.index + 2,  # Use original index for sheet row
+        "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
         "Column_Name": column_name,
         "Error_Value": df_copy[column_name],
         "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
@@ -2834,32 +2834,32 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
             # Append error information if no rows are returned
             results.append({
                 "Primary_table"     : primary_table,
-                "SQL Error Query"   : sql_statement,
+                "SQL_Error_Query"   : sql_statement,
                 "Message"           : 'OK-No rows returned',
                 "Level"             : 'Good',
-                "Lookup Column"     : '',
-                "Lookup Value"      : ''
+                "Lookup_Column"     : '',
+                "Lookup_Value"      : ''
             })
         else:
             # Prepare the results for each row in the result DataFrame
             for row_index, row in result_df.iterrows():
                 results.append({
                     "Primary_table"     : primary_table,
-                    "SQL Error Query"   : sql_statement,
+                    "SQL_Error_Query"   : sql_statement,
                     "Message"           : error_message,
                     "Level"             : error_level,
-                    "Lookup Column"     : unique_column,
-                    "Lookup Value"      : row[unique_column]
+                    "Lookup_Column"     : unique_column,
+                    "Lookup_Value"      : row[unique_column]
                 })
     except Exception as e:
         # Append error information if the SQL execution fails
         results.append({
             "Primary_table"     : primary_table,
-            "SQL Error Query"   : sql_statement,
+            "SQL_Error_Query"   : sql_statement,
             "Message"           : f"Query SQL failed: {str(e)}",
             "Level"             : 'Error',
-            "Lookup Column"     : '',
-            "Lookup Value"      : ''
+            "Lookup_Column"     : '',
+            "Lookup_Value"      : ''
         })
 
     return pd.DataFrame(results)
@@ -2912,32 +2912,32 @@ def get_rows_with_condition_sqlite(tables, sql_statement, conn, error_message, e
             # Append error information if no rows are returned
             results.append({
                 "Primary_table"     : primary_table,
-                "SQL Error Query"   : sql_statement,
+                "SQL_Error_Query"   : sql_statement,
                 "Message"           : 'OK-No rows returned',
                 "Level"             : 'Good',
-                "Lookup Column"     : '',
-                "Lookup Value"      : ''
+                "Lookup_Column"     : '',
+                "Lookup_Value"      : ''
             })
         else:
             # Prepare the results for each row in the result DataFrame
             for row_index, row in result_df.iterrows():
                 results.append({
                     "Primary_table"     : primary_table,
-                    "SQL Error Query"   : sql_statement,
+                    "SQL_Error_Query"   : sql_statement,
                     "Message"           : error_message,
                     "Level"             : error_level,
-                    "Lookup Column"     : unique_column,
-                    "Lookup Value"      : row[unique_column]
+                    "Lookup_Column"     : unique_column,
+                    "Lookup_Value"      : row[unique_column]
                 })
     except Exception as e:
         # Append error information if the SQL execution fails
         results.append({
             "Primary_table"     : primary_table,
-            "SQL Error Query"   : sql_statement,
+            "SQL_Error_Query"   : sql_statement,
             "Message"           : f"Query SQL failed: {str(e)}",
             "Level"             : 'Error',
-            "Lookup Column"     : '',
-            "Lookup Value"      : ''
+            "Lookup_Column"     : '',
+            "Lookup_Value"      : ''
         })
 
     return pd.DataFrame(results)
@@ -3169,7 +3169,7 @@ def schema_validation_to_xlsx(validation_results,
                                         'Column': str(col), 
                                         'Status': str(err_info['status']).title(), 
                                         'Required': str(req).title(), 
-                                        'Error Type': str(k), 
+                                        "Error_Type": str(k), 
                                         'Error': str(vals['errors'])
                                         })
     if bool(error_ov):                    
@@ -3177,7 +3177,7 @@ def schema_validation_to_xlsx(validation_results,
     else:
         # use a blank sheet
         errors_ov_df = pd.DataFrame(columns=['Dataset', 'Column', 'Status', 
-                                            'Required', 'Error Type', 'Error']) 
+                                            'Required', "Error_Type", 'Error']) 
 
     rpt_sheets['Schema Overview'] = errors_ov_df
     sheet_order.append('Schema Overview')
@@ -3192,7 +3192,7 @@ def schema_validation_to_xlsx(validation_results,
                 ve = ve.to_pandas()
             val_errs_df = pd.DataFrame(ve)
             try:
-                val_errs_df = val_errs_df.sort_values(by='Sheet Row',
+                val_errs_df = val_errs_df.sort_values(by="Sheet_Row",
                                                     ascending=True)
                 value_errors[ds] = val_errs_df
             except:
