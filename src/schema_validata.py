@@ -73,7 +73,7 @@ class Config:
 
     # Data integrity schema
     DATA_INTEGRITY_SCHEMA = {
-        'SQL Error Query': "object",
+        'SQL_Error_Query': "object",
         'Level': "object",
         'Message': "object"
     }
