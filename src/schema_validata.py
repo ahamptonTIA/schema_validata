@@ -2192,7 +2192,7 @@ def subset_error_df(df, column_name, unique_column=None):
         columns = [column_name]
         if unique_column and unique_column in df.columns:
             columns.append(unique_column)
-        return df.loc[columns].to_pandas()
+        return df[columns].to_pandas()
     else:
         # Select only the necessary columns
         if unique_column and unique_column in df.columns:
