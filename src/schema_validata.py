@@ -2332,7 +2332,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     results = []
     for index, row in filtered_df.iterrows():
         result_dict = {
-            "Sheet_Row"Sheet_Row" index + 2,  # Use the original index
+            "Sheet_Row":  index + 2,  # Use the original index
             "Error_Type": 'Unallowed Value',
             'Column_Name': column_name,
             "Error_Value": row[column_name]
