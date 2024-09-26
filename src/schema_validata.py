@@ -364,14 +364,17 @@ def get_best_uid_column(df, preferred_column=None):
     if not (is_pandas or is_spark_pandas):
         raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
-    if is_spark_pandas:
-        df = df.to_pandas()
+    # Convert to Pandas if it's a PySpark DataFrame
+    if isinstance(df, ps.DataFrame):
+        df_copy = df.to_pandas()
+    else:
+        df_copy = df
 
     uniq_cnts = {}
     uid_dtypes = ['Integer', 'String']
-    for col in df.columns:
-        if infer_data_types(df[col]) in uid_dtypes:
-            unique_vals = df[col].dropna().nunique()
+    for col in df_copy.columns:
+        if infer_data_types(df_copy[col]) in uid_dtypes:
+            unique_vals = df_copy[col].dropna().nunique()
             uniq_cnts[col] = int(unique_vals)
 
     if uniq_cnts:
@@ -1413,14 +1416,17 @@ def build_data_dictionary(df,
     if not (is_pandas or is_spark_pandas):
         raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
-    if is_spark_pandas:
-        df = df.to_pandas()
+    # Convert to Pandas if it's a PySpark DataFrame
+    if isinstance(df, ps.DataFrame):
+        df_copy = df.to_pandas()
+    else:
+        df_copy = df
 
     data_dict = {}
 
-    for col in df.columns:
+    for col in df_copy.columns:
         # get a null mask
-        null_mask = df[col].isnull()
+        null_mask = df_copy[col].isnull()
 
         # Identify non-null values
         non_null_mask = ~null_mask
@@ -1430,7 +1436,7 @@ def build_data_dictionary(df,
             "field_name": col,
             "data_type": "Null-Unknown",
             "allow_null": true_val,
-            "null_count": int(len(df)),
+            "null_count": int(len(df_copy)),
             "duplicate_count": 0,
             "length": na_val,
             "range_min": na_val,
@@ -1443,9 +1449,9 @@ def build_data_dictionary(df,
 
         # create column info structure/values (non-null columns)
         if not null_mask.all():
-            _s = df[col][non_null_mask]
+            _s = df_copy[col][non_null_mask]
             dups = _s.duplicated(keep=False)
-            has_nulls = series_hasNull(df[col])
+            has_nulls = series_hasNull(df_copy[col])
             column_info = {
                 "field_name": col,
                 "data_type": infer_data_types(_s),
@@ -1467,7 +1473,7 @@ def build_data_dictionary(df,
                     # try to cast the series as an int 
                     _s = _s.astype(int)   
                 except:
-                    pass
+                    pass 
 
             if pd.api.types.is_string_dtype(_s) or \
                 pd.api.types.is_categorical_dtype(_s) or \
@@ -2224,7 +2230,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
     # For Polars DataFrames, use a dictionary comprehension for efficiency
     new_columns = {
         "Error_Type": "Null Value",
-        "Sheet_Row": df_copy.index.to_numpy() + 2,  # Use original index for sheet row
+        "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
         "Column_Name": column_name,
         "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
         "Lookup_Value": df_copy[unique_column] if unique_column in df_copy.columns else None
