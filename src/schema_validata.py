@@ -2572,8 +2572,8 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
                         value_errors_nulls(df, col, unique_column=unique_column)
                     )
                 if 'unique_value' in flagged_errs and 'unique_value' not in ignore_errors:
+                    print(f'{col}, {unique_column}')
                     sheet_v_errors.append(
-                        print(col, unique_column)
                         value_errors_duplicates(df, col, unique_column=unique_column)
                     )
                 if 'length' in flagged_errs and 'length' not in ignore_errors:
