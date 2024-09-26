@@ -2158,6 +2158,40 @@ def validate_schema(observed_schema,
 
 #---------------------------------------------------------------------------------- 
 
+def subset_error_df(df, column_name, unique_column=None):
+    """
+    Selects only the necessary columns from a DataFrame.
+
+    Parameters:
+    ----------
+    df : pd.DataFrame or pspyspark.pandas.DataFrame
+        The DataFrame to select columns from.
+    column_name : str
+        The name of the column to select.
+    unique_column : str, optional
+        The name of the unique column to select, if it exists.
+
+    Returns:
+    -------
+    pd.DataFrame:
+        A DataFrame containing only the selected columns.
+    """
+    if isinstance(df, ps.DataFrame):
+        # Convert to pandas DataFrame
+        df = (
+            df[[column_name, unique_column]].to_pandas() 
+            if unique_column and unique_column in df.columns 
+            else df[[column_name]].to_pandas()
+        )
+
+        # Select only the necessary columns
+        if unique_column and unique_column in df.columns:
+            return df[[column_name, unique_column]]
+        else:
+            return df[[column_name]]
+ 
+#---------------------------------------------------------------------------------- 
+
 def value_errors_nulls(df, column_name, unique_column=None):
     """
     Identifies null values in a DataFrame column and returns their row
@@ -2165,7 +2199,7 @@ def value_errors_nulls(df, column_name, unique_column=None):
 
     Parameters:
     ----------
-    df : pd.DataFrame or ps.DataFrame
+    df : pd.DataFrame or pspyspark.pandas.DataFrame
         The DataFrame to check.
     column_name : str
         The name of the column to check for null values.
@@ -2178,17 +2212,21 @@ def value_errors_nulls(df, column_name, unique_column=None):
         A Series containing dictionaries, each with 'Sheet Row', 'Error Type',
         'Column Name', and the unique column value (if provided).
     """
-
+    # Create a copy of the DataFrame with only the necessary columns
+    df_copy = subset_error_df(df, 
+                            column_name=column_name, 
+                            unique_column=unique_column)
+    
     # For Polars DataFrames, use a dictionary comprehension for efficiency
     new_columns = {
         "Error_Type": "Null Value",
-        "Sheet_Row": df.index.to_numpy() + 2,  # Use original index for sheet row
+        "Sheet_Row": df_copy.index.to_numpy() + 2,  # Use original index for sheet row
         "Column_Name": column_name,
-        "Lookup_Column": unique_column if unique_column in df.columns else None,
-        "Lookup_Value": df[unique_column] if unique_column in df.columns else None
+        "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
+        "Lookup_Value": df_copy[unique_column] if unique_column in df_copy.columns else None
     }
 
-    return pd.DataFrame(new_columns)[df[column_name].isnull()]
+    return pd.DataFrame(new_columns)[df_copy[column_name].isnull()]
     
 #---------------------------------------------------------------------------------- 
 
@@ -2212,11 +2250,10 @@ def value_errors_duplicates(df, column_name, unique_column=None):
     pd.DataFrame or ps.DataFrame:
         A DataFrame containing the identified errors.
     """
-    if isinstance(df, ps.DataFrame):
-        # Create a copy of the DataFrame
-        df_copy = df.to_pandas()
-    else:
-        df_copy = df
+    # Create a copy of the DataFrame with only the necessary columns
+    df_copy = subset_error_df(df, 
+                            column_name=column_name, 
+                            unique_column=unique_column)
 
     # Select only the necessary columns
     if unique_column and unique_column in df_copy.columns:
@@ -2276,7 +2313,9 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
     allowed_values = pd.Series(allowed_values).astype(str)
 
     # Create a copy of the DataFrame with only the necessary columns
-    df_copy = df[[column_name, unique_column]].copy() 
+    df_copy = subset_error_df(df, 
+                            column_name=column_name, 
+                            unique_column=unique_column)
 
     # Convert the column to strings for comparison
     df_copy[column_name] = df_copy[column_name].astype(str)
@@ -2339,20 +2378,13 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
         strings within the limit.
     """
 
-    if isinstance(df, ps.DataFrame):
-        # Create a copy of the DataFrame
-        df_copy = df.to_pandas()
-    else:
-        df_copy = df
-
-    # Select only the necessary columns
-    if unique_column and unique_column in df_copy.columns:
-        filtered_df = df_copy[[column_name, unique_column]]
-    else:
-        filtered_df = df_copy[[column_name]]
+    # Create a copy of the DataFrame with only the necessary columns
+    df_copy = subset_error_df(df, 
+                            column_name=column_name, 
+                            unique_column=unique_column)
 
     try:
-        str_values = filtered_df[column_name].astype(str, errors='ignore').fillna('')
+        str_values = df_copy[column_name].astype(str, errors='ignore').fillna('')
     except ValueError:
         return pd.Series([])
 
@@ -2360,12 +2392,12 @@ def value_errors_length(df, column_name, max_length, unique_column=None):
         "Error_Type": f"Value Exceeds Max Length ({max_length})",
         "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
         "Column_Name": column_name,
-        "Error_Value": filtered_df[column_name],
+        "Error_Value": df_copy[column_name],
         "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
-        "Lookup_Value": filtered_df[unique_column] if unique_column in df_copy.columns else None
+        "Lookup_Value": df_copy[unique_column] if unique_column in df_copy.columns else None
     }
 
-    return pd.DataFrame(new_columns)[str_values.str.len() > max_length]
+    return pd.DataFrame(new_columns)[str_values.str.strip().str.len() > max_length]
     
 #---------------------------------------------------------------------------------- 
 
@@ -2395,19 +2427,12 @@ def value_errors_out_of_range(df, column_name, test_type, value, unique_column=N
         (if provided), and the actual value from the 'column_name'.
     """
 
-    if isinstance(df, ps.DataFrame):
-        # Create a copy of the DataFrame
-        df_copy = df.to_pandas()
-    else:
-        df_copy = df
+    # Create a copy of the DataFrame with only the necessary columns
+    df_copy = subset_error_df(df, 
+                            column_name=column_name, 
+                            unique_column=unique_column)
 
-    # Select only the necessary columns
-    if unique_column and unique_column in df_copy.columns:
-        filtered_df = df_copy[[column_name, unique_column]]
-    else:
-        filtered_df = df_copy[[column_name]]
-
-    cleaned_column = filtered_df[column_name].replace(r'^\s+$', pd.NA, regex=True)
+    cleaned_column = df_copy[column_name].replace(r'^\s+$', pd.NA, regex=True)
     numeric_column = pd.to_numeric(cleaned_column, errors='coerce')
 
     if test_type not in ("min", "max"):
@@ -2461,29 +2486,22 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
         (if provided), and the actual value from the 'column_name'.
     """
 
-    if isinstance(df, ps.DataFrame):
-        # Create a copy of the DataFrame
-        df_copy = df.to_pandas()
-    else:
-        df_copy = df
+    # Create a copy of the DataFrame with only the necessary columns
+    df_copy = subset_error_df(df, 
+                            column_name=column_name, 
+                            unique_column=unique_column)
 
-    # Select only the necessary columns
-    if unique_column and unique_column in df_copy.columns:
-        filtered_df = df_copy[[column_name, unique_column]]
-    else:
-        filtered_df = df_copy[[column_name]]
-    del(df_copy) 
-    non_null_mask = filtered_df[column_name].notnull()
-    pattern_match = filtered_df.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
+    non_null_mask = df_copy[column_name].notnull()
+    pattern_match = df_copy.loc[non_null_mask, column_name].astype(str).str.match(regex_pattern)
     mismatch_mask = ~pattern_match
 
     new_columns = {
         "Error_Type": "Invalid Value Formatting",
-        "Sheet_Row": filtered_df.index + 2,  # Use original index for sheet row
+        "Sheet_Row": df_copy.index + 2,  # Use original index for sheet row
         "Column_Name": column_name,
-        "Error_Value": filtered_df[column_name],
-        "Lookup_Column": unique_column if unique_column in filtered_df.columns else None,
-        "Lookup_Value": filtered_df[unique_column] if unique_column in filtered_df.columns else None
+        "Error_Value": df_copy[column_name],
+        "Lookup_Column": unique_column if unique_column in df_copy.columns else None,
+        "Lookup_Value": df_copy[unique_column] if unique_column in df_copy.columns else None
     }
 
     return pd.DataFrame(new_columns)[non_null_mask & mismatch_mask]
