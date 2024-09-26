@@ -2195,7 +2195,7 @@ def subset_error_df(df, column_name, unique_column=None):
         return df[columns].to_pandas()
     else:
         # Select only the necessary columns
-        if unique_column and unique_column in df.columns:
+        if column_name != unique_column and (unique_column and unique_column in df.columns):
             return df[[column_name, unique_column]]
         else:
             return df[[column_name]]
