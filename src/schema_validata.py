@@ -2160,11 +2160,11 @@ def validate_schema(observed_schema,
 
 def subset_error_df(df, column_name, unique_column=None):
     """
-    Selects only the necessary columns from a DataFrame.
+    Selects only the necessary columns from a DataFrame, handling different DataFrame types.
 
     Parameters:
     ----------
-    df : pd.DataFrame or pspyspark.pandas.DataFrame
+    df : pd.DataFrame or ps.DataFrame
         The DataFrame to select columns from.
     column_name : str
         The name of the column to select.
@@ -2176,19 +2176,20 @@ def subset_error_df(df, column_name, unique_column=None):
     pd.DataFrame:
         A DataFrame containing only the selected columns.
     """
-    if isinstance(df, ps.DataFrame):
-        # Convert to pandas DataFrame
-        df = (
-            df[[column_name, unique_column]].to_pandas() 
-            if unique_column and unique_column in df.columns 
-            else df[[column_name]].to_pandas()
-        )
 
-        # Select only the necessary columns
-        if unique_column and unique_column in df.columns:
-            return df[[column_name, unique_column]]
-        else:
-            return df[[column_name]]
+    # Ensure column_name exists in the DataFrame
+    if column_name not in df.columns:
+        raise ValueError(f"Column '{column_name}' does not exist in the DataFrame.")
+
+    # Convert to Pandas DataFrame if necessary, using to_pandas_on_spark for efficiency
+    if isinstance(df, ps.DataFrame):
+        df = df.to_pandas_on_spark()
+
+    # Select only the necessary columns
+    if unique_column and unique_column in df.columns:
+        return df[[column_name, unique_column]]
+    else:
+        return df[[column_name]]
  
 #---------------------------------------------------------------------------------- 
 
