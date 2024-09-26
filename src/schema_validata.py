@@ -2616,10 +2616,12 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
 
         merged_errors_list = []
         if bool(sheet_v_errors):
-            if len(sheet_v_errors) > 0:
-                merged_errors_list = [i for e in sheet_v_errors for i in e]
-            else:
+            if len(sheet_v_errors) > 1:
+                merged_errors_list = pd.concat(sheet_v_errors, ignore_index=True)
+            elif len(sheet_v_errors) == 1:
                 merged_errors_list = sheet_v_errors
+            else:
+                print('Unknown error processing value errors in : get_value_errors')
             merged_errors_list = json.loads(pd.DataFrame(merged_errors_list).to_json())
         value_errors[observed_ds] = merged_errors_list
 
