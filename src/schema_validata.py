@@ -372,8 +372,13 @@ def get_best_uid_column(df, preferred_column=None):
     uniq_cnts = {}
     uid_dtypes = ['Integer', 'String']
     for col in df.columns:
-        if infer_data_types(df[col]) in uid_dtypes:
-            unique_vals = df[col].dropna().nunique()
+        if 'pyspark.pandas.series.Series' in str(type(df[col])):
+            _s = df[col].to_pandas()
+        else:
+            _s
+
+        if infer_data_types(_s) in uid_dtypes:
+            unique_vals = _s.dropna().nunique()
             uniq_cnts[col] = int(unique_vals)
 
     if uniq_cnts:
