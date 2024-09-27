@@ -721,8 +721,7 @@ def xlsx_tabs_to_pd_dataframes(file_path,
                                rm_newlines=True, 
                                replace_char="",
                                na_values=Config.NA_VALUES,
-                               na_patterns=Config.NA_PATTERNS,
-                               use_spark_pandas=True
+                               na_patterns=Config.NA_PATTERNS
                                ):
     """
     Read all sheets/tabs from an excel file into a dictionary of 
@@ -748,9 +747,6 @@ def xlsx_tabs_to_pd_dataframes(file_path,
     na_patterns: (Optional) 
         List of regular expressions to identify strings representing missing values. 
         (default: None)     
-    use_spark_pandas: (Optional)
-        If True, use pyspark.pandas to read the data.
-        (default: True) will use pyspark.pandas if available 
     Returns:
     -------
     dict
@@ -840,8 +836,7 @@ def data_dict_to_json(data_dict_file,
                                             replace_char='',
                                             infer=True,
                                             na_values=na_values,
-                                            na_patterns=na_patterns,
-                                            # use_spark_pandas=False
+                                            na_patterns=na_patterns
                                             )
 
         # Iterate through the dataframes to create a new subset dictionary
@@ -1140,10 +1135,11 @@ def read_df_with_optimal_dtypes(file_path,
                                       read_as_na)
 
     # Identify potential leading zeros for each column
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
     for col in df.columns:
         non_null_values = df[col].dropna()
         
-        if use_spark_pandas:
+        if is_spark_pandas:
             non_null_values = non_null_values.to_numpy()
 
         if len(non_null_values) == 0:
