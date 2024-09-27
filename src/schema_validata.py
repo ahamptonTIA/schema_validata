@@ -709,7 +709,7 @@ def read_spreadsheets(file_path,
     df.columns = df.columns.str.strip()
 
     # Check if pyspark.pandas is available
-    Config.USE_PYSPARK:
+    if Config.USE_PYSPARK:
         df = ps.DataFrame(df)
 
     return df
