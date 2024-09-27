@@ -15,10 +15,10 @@ import numpy as np                          # Library for numerical operations
 try:
     import pyspark
     import pyspark.pandas as ps             # Library for data manipulation and analysis with Spark
-    spark_available = True
+    pyspark_available = True
 except ImportError:
     print("pyspark.pandas is not available in the session.")
-    spark_available = False
+    pyspark_available = False
 from sqlite3 import connect                 # Standard library for creating and managing SQLite3 databases
 import sqlparse                             # Library for parsing SQL queries
 
@@ -56,7 +56,11 @@ class Config:
         config/DATA_DICT_PRIMARY_KEY = 'Name' # Changing a configuration attribute 
         print(config.NA_VALUES)  # Accessing a configuration attribute
     """
-    
+
+
+    if pyspark_available:
+        USE_PYSPARK = True
+
     # Data dictionary schema
     DATA_DICT_SCHEMA = {
         "field_name": "object",
@@ -269,8 +273,8 @@ def get_spreadsheet_metadata(file_path):
 
         file_hash = get_md5_hash(file_path)
         for sheet_name, df in dfs.items():
-            if spark_available and isinstance(df, ps.DataFrame):
-                df = df.to_pandas()
+            # if 'pyspark.pandas.frame.DataFrame' in str(type(df)):
+            #     df = df.to_pandas()
             meta = {
                 'file_path': file_path,
                 'file_name': filename,
@@ -364,17 +368,11 @@ def get_best_uid_column(df, preferred_column=None):
     if not (is_pandas or is_spark_pandas):
         raise ValueError("Input must be a pandas or spark.pandas DataFrame.")
 
-    # Convert to Pandas if it's a PySpark DataFrame
-    if isinstance(df, ps.DataFrame):
-        df_copy = df.to_pandas()
-    else:
-        df_copy = df
-
     uniq_cnts = {}
     uid_dtypes = ['Integer', 'String']
-    for col in df_copy.columns:
-        if infer_data_types(df_copy[col]) in uid_dtypes:
-            unique_vals = df_copy[col].dropna().nunique()
+    for col in df.columns:
+        if infer_data_types(df[col]) in uid_dtypes:
+            unique_vals = df[col].dropna().nunique()
             uniq_cnts[col] = int(unique_vals)
 
     if uniq_cnts:
@@ -391,7 +389,7 @@ def get_best_uid_column(df, preferred_column=None):
         return uid_cols[0]
     else:
         return preferred_column
-
+    
 # ----------------------------------------------------------------------------------
 
 def eval_nested_string_literals(data):
@@ -462,8 +460,8 @@ def remove_pd_df_newlines(df, replace_char=''):
     pandas.DataFrame or pyspark.pandas.DataFrame
         The DataFrame with newlines removed from string columns.
     """
-    if isinstance(df, ps.DataFrame):
-        return df.replace('\n', replace_char, regex=True)
+    # if isinstance(df, ps.DataFrame):
+    #     return df.replace('\n', replace_char, regex=True)
     return df.replace('\n', replace_char, regex=True)
 
 # ----------------------------------------------------------------------------------
@@ -489,7 +487,7 @@ def column_is_timestamp(df, column_name, time_format):
         True if all non-null values in the column can 
         be parsed as time, False otherwise.
     """
-    if isinstance(df, ps.DataFrame):
+    if 'pyspark.pandas.frame.DataFrame' in str(type(df)):
         df = df.to_pandas()
     column_as_str = df[column_name].astype(str).replace(r'^\s+$', pd.NA, regex=True).dropna()
     
@@ -711,8 +709,7 @@ def read_spreadsheets(file_path,
     df.columns = df.columns.str.strip()
 
     # Check if pyspark.pandas is available
-    use_spark_pandas = 'pyspark.pandas' in sys.modules
-    if use_spark_pandas:
+    Config.USE_PYSPARK:
         df = ps.DataFrame(df)
 
     return df
@@ -770,10 +767,6 @@ def xlsx_tabs_to_pd_dataframes(file_path,
     filename = os.path.basename(file_path)
     base_name, ext = os.path.splitext(filename)
 
-    if use_spark_pandas: 
-        # Check if pyspark.pandas is available
-        use_spark_pandas = 'pyspark.pandas' in sys.modules
-
     # Iterate through each worksheet and read its data into a DataFrame
     for sheet_name in xls.sheet_names:
         # Choose the appropriate function based on the 'infer' parameter
@@ -794,7 +787,7 @@ def xlsx_tabs_to_pd_dataframes(file_path,
                                    na_patterns=na_patterns)
 
         # Convert to pyspark.pandas DataFrame if available
-        if use_spark_pandas:
+        if Config.USE_PYSPARK:
             df = ps.DataFrame(df)
             
 
@@ -1117,9 +1110,7 @@ def read_df_with_optimal_dtypes(file_path,
     # Initialize empty data type dictionary
     dtypes = {}
 
-    # Check if pyspark.pandas is available
-    use_spark_pandas = 'pyspark.pandas' in sys.modules
-    if use_spark_pandas:
+    if Config.USE_PYSPARK:
         file_path = to_dbfs_path(file_path)
     else:
         file_path = db_path_to_local(file_path)
@@ -1208,9 +1199,13 @@ def infer_data_types(series):
     is_pandas = isinstance(series, pd.Series)
     is_spark_pandas = 'pyspark.pandas.series.Series' in str(type(series))
 
-    if is_pandas or is_spark_pandas:
+
+    if is_pandas:
         non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
-        if non_null_values.empty:
+    elif is_spark_pandas:
+        non_null_values = series.replace(r'^\s+$', None, regex=True).dropna().to_numpy()
+        
+        if len(non_null_values) == 0:
             return "Null-Unknown"
         elif pd.api.types.is_bool_dtype(non_null_values):
             return "Boolean"
