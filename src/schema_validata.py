@@ -15,6 +15,7 @@ import numpy as np                          # Library for numerical operations
 try:
     import pyspark
     import pyspark.pandas as ps             # Library for data manipulation and analysis with Spark
+    from pyspark.sql.types import BooleanType, IntegerType, FloatType, TimestampType, StringType, DateType
     pyspark_available = True
 except ImportError:
     print("pyspark.pandas is not available in the session.")
@@ -526,10 +527,14 @@ def infer_datetime_column(df, column_name):
         The column/series converted to a datetime type if successful,
         otherwise the unaltered column is returned.
     """
-    if isinstance(df, ps.DataFrame):
-        df = df.to_pandas()
+    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
 
-    column_copy = df[column_name].copy()
+    if is_spark_pandas:
+        # Get the Series for the target column directly and convert it to pandas Series
+        column = df[column_name].to_pandas()
+    else:
+        column = df[column_name].copy()
+
     string_column = df[column_name].astype(str).replace(r'^\s+$', pd.NA, regex=True).dropna()
         
     if len(string_column) == 0:
@@ -1195,15 +1200,15 @@ def infer_data_types(series):
     is_pandas = isinstance(series, pd.Series)
     is_spark_pandas = 'pyspark.pandas.series.Series' in str(type(series))
 
-
     if is_pandas:
         non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
     elif is_spark_pandas:
         non_null_values = series.replace(r'^\s+$', None, regex=True).dropna().to_numpy()
         
-        if len(non_null_values) == 0:
-            return "Null-Unknown"
-        elif pd.api.types.is_bool_dtype(non_null_values):
+    if len(non_null_values) == 0:
+        return "Null-Unknown"
+    elif is_pandas:
+        if pd.api.types.is_bool_dtype(non_null_values):
             return "Boolean"
         elif pd.api.types.is_integer_dtype(non_null_values):
             return "Integer"
@@ -1226,6 +1231,21 @@ def infer_data_types(series):
                     return "Datetime"
                 except:
                     return "String"
+        else:
+            return "Other"
+    elif is_spark_pandas:
+
+        spark_type = series.spark.data_type
+        if isinstance(spark_type, BooleanType):
+            return "Boolean"
+        elif isinstance(spark_type, IntegerType):
+            return "Integer"
+        elif isinstance(spark_type, FloatType):
+            return "Float"
+        elif isinstance(spark_type, (TimestampType, DateType)):
+            return "Datetime"
+        elif isinstance(spark_type, StringType):
+            return "String"
         else:
             return "Other"
     else:
