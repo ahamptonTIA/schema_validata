@@ -2617,15 +2617,18 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
                                 value_errors_regex_mismatches(df, col, regex_pattern=ptrn, unique_column=unique_column)
                             )
 
-        merged_errors_list = []
-        if bool(sheet_v_errors):
-            if len(sheet_v_errors) > 1:
-                merged_errors_list = pd.concat(sheet_v_errors, ignore_index=True)
-            elif len(sheet_v_errors) == 1:
-                merged_errors_list = sheet_v_errors
-            else:
-                print('Unknown error processing value errors in : get_value_errors')
-            merged_errors_list = json.loads(pd.DataFrame(merged_errors_list).to_json())
+    merged_errors_list = []
+    if bool(sheet_v_errors):
+        sheet_v_errors = [df.to_pandas() if isinstance(df, ps.DataFrame) else df for df in sheet_v_errors]
+        if len(sheet_v_errors) > 1:
+            merged_errors_list = pd.concat(sheet_v_errors, ignore_index=True)
+        elif len(sheet_v_errors) == 1:
+            merged_errors_list = sheet_v_errors[0]
+        else:
+            merged_errors_list = []
+            print('Unknown error processing value errors in : get_value_errors')
+
+        merged_errors_list = json.loads(pd.DataFrame(merged_errors_list).to_json())
         value_errors[observed_ds] = merged_errors_list
 
     return {uid: value_errors}
