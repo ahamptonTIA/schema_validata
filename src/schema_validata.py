@@ -2555,6 +2555,8 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
     uid = list(schema_errors.keys())[0]
 
     value_errors = {}
+    
+            
     for mapping in schema_mapping:
         observed_ds = mapping['dataset']
         data_dict_section = mapping['data_dict']
@@ -2564,7 +2566,18 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
             _e = f'''Authoritative schema "{data_dict_section}" not found in keys,
             please check schema_mapping!'''
             print(_e)
-            return {data_dict_section: {'schema_mapping': schema_mapping, 'Errors': _e}}
+
+            merged_errors_list = [
+                            pd.DataFrame([{
+                                            "Error_Type": "No Matching Schema in Data Dictionary",
+                                            "Error_Value": _e,
+                                            # "Sheet_Row": 1,  
+                                            # "Column_Name": 'N/A',
+                                            # "Lookup_Column": 'N/A',
+                                            # "Lookup_Value" : 'N/A'
+                                        }])
+                            ]
+            return {uid: {observed_ds: merged_errors_list}}
 
         sheet_results = schema_errors[uid]["results"][observed_ds]
         sheet_v_errors = []
@@ -2627,6 +2640,19 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
             else:
                 merged_errors_list = []
                 print('Unknown error processing value errors in : get_value_errors')
+        else:
+            merged_errors_list = [
+                            pd.DataFrame([{
+                                            "Error_Type": "None",
+                                            # "Error_Value": 'N/A',
+                                            # "Sheet_Row": 'N/A',  
+                                            # "Column_Name": 'N/A',
+                                            # "Lookup_Column": 'N/A',
+                                            # "Lookup_Value" : 'N/A'
+                                        }])
+                            ]
+
+            return {uid: {observed_ds: merged_errors_list}}
 
         merged_errors_list = json.loads(pd.DataFrame(merged_errors_list).to_json())
         value_errors[observed_ds] = merged_errors_list
