@@ -36,7 +36,7 @@ setuptools.setup(
                         'numpy<1.25,>=1.16.0',
                         'openpyxl',
                         'sqlparse', 
-                        'sqlite3'
+                        #'sqlite3'
 
                     ]
     )
