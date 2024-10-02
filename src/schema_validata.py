@@ -3143,7 +3143,7 @@ def generate_integrity_summary(data_integrity_df):
 
 def data_integrity(data_dict_path, csvs):
     """
-    Calls sv.find_errors_with_sql to get the data integrity DataFrame,
+    Calls find_errors_with_sql to get the data integrity DataFrame,
     then passes that DataFrame to generate_integrity_summary to get the summary.
 
     Parameters:
@@ -3154,7 +3154,7 @@ def data_integrity(data_dict_path, csvs):
     tuple: A tuple containing the full results DataFrame and the summary DataFrame.
     """
     # Perform the data integrity checks
-    data_integrity_df = sv.find_errors_with_sql(data_dict_path, csvs)
+    data_integrity_df = find_errors_with_sql(data_dict_path, csvs)
     
     # Generate the summary DataFrame
     summary_df = generate_integrity_summary(data_integrity_df)
