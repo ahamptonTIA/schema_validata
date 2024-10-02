@@ -68,6 +68,7 @@ class Config:
 
     if pyspark_available:
         USE_PYSPARK = True
+        SPARK_SESSION = SparkSession.builder.appName("schema_validata").getOrCreate()
 
     # Data dictionary schema
     DATA_DICT_SCHEMA = {
@@ -2703,7 +2704,7 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
     
 #----------------------------------------------------------------------------------
 
-def load_files_to_sql(files, include_tables=[], use_spark=True):
+def load_files_to_sql(files, include_tables=[]):
     """
     Loads CSV files into Spark SQL tables if use_spark is True, otherwise into an in-memory SQLite database.
 
@@ -2713,8 +2714,6 @@ def load_files_to_sql(files, include_tables=[], use_spark=True):
         List of paths to spreadsheet files. Default is an empty list.
     include_tables : list of str, optional
         List of table names to include. Default is an empty list.
-    use_spark : bool, optional
-        Flag to determine whether to use Spark for loading files. If True, uses Spark; otherwise, uses SQLite. Default is True.
 
     Returns
     -------
@@ -2724,15 +2723,10 @@ def load_files_to_sql(files, include_tables=[], use_spark=True):
 
     table_names = []
 
-    try:
-        spark_version = spark.version
-        if use_spark and Config.USE_PYSPARK
-        print(f"Creating tables in spark with version: {spark_version}")
-    except NameError:
-        use_spark = False
-        print(f"Creating tables in memory with sqlite")
 
-    if use_spark:
+
+    if Config.USE_PYSPARK:
+        print(f"Creating tables in spark with version: {Config.SparkSession.version}")
         for f in files:
             # Get the base name of the file without extension
             base_name = os.path.splitext(os.path.basename(f))[0]
@@ -2889,13 +2883,12 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
     pd.DataFrame
         A DataFrame containing the primary table name, SQL error query, lookup column, and lookup value.
     """
-    spark = SparkSession.builder.appName("DataIntegrityCheck").getOrCreate()
 
     # Extract the primary table name from the SQL statement
     primary_table = extract_primary_table(sql_statement)
 
     # Get the DataFrame for the primary table
-    primary_df = spark.table(primary_table)
+    primary_df = Config.SparkSession.table(primary_table)
 
     # Get the best unique ID column from the primary table
     if primary_df.count() < 10000:
@@ -2917,7 +2910,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
     results = []
     try:
         # Execute the modified SQL statement
-        result_df = spark.sql(modified_sql).toPandas()
+        result_df = Config.SparkSession.sql(modified_sql).toPandas()
 
         if result_df.empty:
             # Append error information if no rows are returned
