@@ -2726,7 +2726,7 @@ def load_files_to_sql(files, include_tables=[], use_spark=True):
 
     try:
         spark_version = spark.version
-        use_spark = True and Config.USE_PYSPARK
+        if use_spark and Config.USE_PYSPARK
         print(f"Creating tables in spark with version: {spark_version}")
     except NameError:
         use_spark = False
