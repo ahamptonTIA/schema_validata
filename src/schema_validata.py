@@ -2701,7 +2701,7 @@ def load_files_to_sql(files, include_tables=[], use_spark=True):
                 continue
             
             # Read the file into a dictionary of DataFrames
-            dfs = sv.read_csv_or_excel_to_df(f)
+            dfs = read_csv_or_excel_to_df(f)
             
             for tn, df in dfs.items():
                 # Skip the table if its name is not in the include_tables list
@@ -2733,7 +2733,7 @@ def load_files_to_sql(files, include_tables=[], use_spark=True):
                 continue
             
             # Read the file into a dictionary of DataFrames
-            dfs = sv.read_csv_or_excel_to_df(f)
+            dfs = read_csv_or_excel_to_df(f)
             
             for tn, df in dfs.items():
                 # Skip the table if its name is not in the include_tables list
