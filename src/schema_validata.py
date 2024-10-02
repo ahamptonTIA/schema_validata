@@ -16,6 +16,7 @@ try:
     import pyspark
     import pyspark.pandas as ps             # Library for data manipulation and analysis with Spark
     from pyspark.sql.types import BooleanType, IntegerType, FloatType, TimestampType, StringType, DateType
+    from pyspark.sql import SparkSession
     pyspark_available = True
 except ImportError:
     print("pyspark.pandas is not available in the session.")
@@ -25,13 +26,19 @@ import sqlparse                             # Library for parsing SQL queries
 
 #---------------------------------------------------------------------------------- 
 
-# warnings to silence
-warnings.simplefilter("ignore", UserWarning)
-try:
-    # Ignore panda DtypeWarnigs for low memory option (can't avoid in unknown schemas)
-    warnings.filterwarnings('ignore', message="^Columns.*")
-except:
-    pass
+# List of warnings to silence
+warnings_to_ignore = [
+    {"category": UserWarning},
+    {"message": "^Columns.*"},
+    {"category": FutureWarning}
+]
+
+# Suppress the warnings
+for warning in warnings_to_ignore:
+    if "category" in warning:
+        warnings.filterwarnings("ignore", category=warning["category"])
+    elif "message" in warning:
+        warnings.filterwarnings("ignore", message=warning["message"])
 try:
     # Ignore future warning on silent down casting (code assumes new method)
     pd.set_option('future.no_silent_downcasting', True)
@@ -183,6 +190,40 @@ class Config:
             return super().default(obj)
 
 #---------------------------------------------------------------------------------- 
+
+def db_path_to_local(path):
+    """Function returns a local os file path from dbfs file path
+    Parameters
+    ----------
+    path : str
+        DataBricks dbfs file storage path
+    Returns
+    ----------
+    file path: str
+        local os file path
+    """    
+    if path.startswith(r'/mnt'):
+        path = f"{r'/dbfs'}{path}"
+    return re.sub(r'^(dbfs:)', r'/dbfs', path)
+
+#----------------------------------------------------------------------------------    
+
+def to_dbfs_path(path):
+    """Function converts a local os file path to a dbfs file path
+    Parameters
+    ----------
+    path : str
+        local os file path
+    Returns
+    ----------
+    file path: str
+        DataBricks dbfs file storage path
+    """        
+    if path.startswith(r'/mnt'):
+        path = f"{r'dbfs:'}{path}"        
+    return re.sub(r'^(/dbfs)', r'dbfs:', path)   
+
+#----------------------------------------------------------------------------------    
 
 def get_byte_units(size_bytes):
     """Converts bytes into the largest possible unit of measure.
@@ -375,7 +416,7 @@ def get_best_uid_column(df, preferred_column=None):
         if 'pyspark.pandas.series.Series' in str(type(df[col])):
             _s = df[col].to_pandas()
         else:
-            _s
+            _s = df[col]
 
         if infer_data_types(_s) in uid_dtypes:
             unique_vals = _s.dropna().nunique()
@@ -2685,7 +2726,7 @@ def load_files_to_sql(files, include_tables=[], use_spark=True):
 
     try:
         spark_version = spark.version
-        use_spark = True
+        use_spark = True and Config.USE_PYSPARK
         print(f"Creating tables in spark with version: {spark_version}")
     except NameError:
         use_spark = False
@@ -2828,8 +2869,6 @@ def extract_all_table_names(sql_statement):
 
 #----------------------------------------------------------------------------------
 
-#---------------------------------------------------------------------------------- 
-
 def get_rows_with_condition_spark(tables, sql_statement, error_message, error_level='error'):
     """
     Returns rows with a unique ID column value where a condition is true in the first table listed in an SQL statement.
@@ -2850,7 +2889,8 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
     pd.DataFrame
         A DataFrame containing the primary table name, SQL error query, lookup column, and lookup value.
     """
-    
+    spark = SparkSession.builder.appName("DataIntegrityCheck").getOrCreate()
+
     # Extract the primary table name from the SQL statement
     primary_table = extract_primary_table(sql_statement)
 
@@ -2858,7 +2898,10 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
     primary_df = spark.table(primary_table)
 
     # Get the best unique ID column from the primary table
-    unique_column = get_best_uid_column(primary_df)
+    if primary_df.count() < 10000:
+        unique_column = get_best_uid_column(primary_df.toPandas())
+    else:
+        unique_column = get_best_uid_column(primary_df.pandas_api())
 
     # Register the primary table as a temporary view
     primary_df.createOrReplaceTempView("primary_table")
@@ -2990,14 +3033,15 @@ def get_rows_with_condition_sqlite(tables, sql_statement, conn, error_message, e
 
 #----------------------------------------------------------------------------------
 
-def find_errors_with_sql(rules_df, files):
+def find_errors_with_sql(data_dict_path, files, sheet_name=None):
     """
     Identifies errors in data files based on SQL rules and returns a DataFrame of errors.
 
     Parameters
     ----------
-    rules_df : pd.DataFrame
-        DataFrame containing SQL rules with columns 'SQL Error Query' and 'message'.
+    data_dict_path : str
+        The path to the data dictionary file (CSV or Excel) containing 
+        SQL data integrity rules.
     files : list of str
         List of paths to CSV files to be loaded into an in-memory SQLite database.
 
@@ -3006,11 +3050,21 @@ def find_errors_with_sql(rules_df, files):
     pd.DataFrame
         A DataFrame containing the primary table name, SQL error query, lookup column, and lookup value for each error found.
     """
-    
+
     # Initialize an empty DataFrame to store errors
     errors_df = pd.DataFrame()
 
     sql_ref_tables = []
+
+    if not sheet_name:
+        sheet_name = 'Data_Integrity'
+    # Check if 'Data_Integrity' sheet exists in the Excel file
+    if sheet_name in pd.ExcelFile(data_dict_path).sheet_names:
+        if Config.USE_PYSPARK:
+            rules_df = ps.read_excel(to_dbfs_path(data_dict_path), sheet_name='Data_Integrity')
+        else:
+            rules_df = pd.read_excel(data_dict_path, sheet_name='Data_Integrity')
+
     # Extract table references from each SQL rule
     for index, row in rules_df.iterrows():
         sql_statement = row['SQL Error Query']
