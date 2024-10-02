@@ -2726,7 +2726,7 @@ def load_files_to_sql(files, include_tables=[]):
 
 
     if Config.USE_PYSPARK:
-        print(f"Creating tables in spark with version: {Config.SparkSession.version}")
+        print(f"Creating tables in spark with version: {Config.SPARK_SESSION.version}")
         for f in files:
             # Get the base name of the file without extension
             base_name = os.path.splitext(os.path.basename(f))[0]
@@ -2888,7 +2888,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
     primary_table = extract_primary_table(sql_statement)
 
     # Get the DataFrame for the primary table
-    primary_df = Config.SparkSession.table(primary_table)
+    primary_df = Config.SPARK_SESSION.table(primary_table)
 
     # Get the best unique ID column from the primary table
     if primary_df.count() < 10000:
@@ -2910,7 +2910,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
     results = []
     try:
         # Execute the modified SQL statement
-        result_df = Config.SparkSession.sql(modified_sql).toPandas()
+        result_df = Config.SPARK_SESSION.sql(modified_sql).toPandas()
 
         if result_df.empty:
             # Append error information if no rows are returned
