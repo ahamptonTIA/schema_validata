@@ -3089,6 +3089,80 @@ def find_errors_with_sql(data_dict_path, files, sheet_name=None):
 
 #---------------------------------------------------------------------------------- 
 
+def generate_integrity_summary(data_integrity_df):
+    """
+    Generates a summary DataFrame from the provided data 
+    integrity DataFrame.
+
+    Parameters:
+    data_integrity_df (pd.DataFrame): The input DataFrame containing 
+    data integrity information.
+
+    Returns:
+    pd.DataFrame: A summary DataFrame with columns 
+                ['Primary_table', 'SQL_Error_Query', 'Message', 
+                'Level', 'Row Quantity', 'Row Percentage'].
+    """
+    # Define the schema for the summary DataFrame
+    summ_schema = [
+        'Primary_table', 'SQL_Error_Query', 'Message', 
+        'Level', 'Row Quantity', 'Row Percentage'
+    ]
+
+    # Create an empty DataFrame with the defined schema
+    templ_df = pd.DataFrame(columns=summ_schema).astype(str)
+
+    # Check if the input DataFrame is not empty
+    if len(data_integrity_df) > 0:
+        # Calculate the total number of rows in the input DataFrame
+        total_rows = len(data_integrity_df)
+
+        # Group by the first four columns and count the occurrences
+        summary_df = (
+            data_integrity_df
+            .groupby(summ_schema[0:4])
+            .size()
+            .reset_index(name='Row Quantity')
+        )
+
+        # Calculate the row percentage
+        summary_df['Row Percentage'] = (
+            summary_df['Row Quantity'] / total_rows
+        ) * 100
+
+        # If the summary DataFrame is empty, use the template DataFrame
+        if summary_df.empty:
+            summary_df = templ_df
+    else:
+        # If the input DataFrame is empty, use the template DataFrame
+        summary_df = templ_df
+
+    return summary_df
+
+#---------------------------------------------------------------------------------- 
+
+def data_integrity(data_dict_path, csvs):
+    """
+    Calls sv.find_errors_with_sql to get the data integrity DataFrame,
+    then passes that DataFrame to generate_integrity_summary to get the summary.
+
+    Parameters:
+    data_dict_path (str): The path to the data dictionary.
+    csvs (list): List of CSV file paths.
+
+    Returns:
+    tuple: A tuple containing the full results DataFrame and the summary DataFrame.
+    """
+    # Perform the data integrity checks
+    data_integrity_df = sv.find_errors_with_sql(data_dict_path, csvs)
+    
+    # Generate the summary DataFrame
+    summary_df = generate_integrity_summary(data_integrity_df)
+    
+    return data_integrity_df, summary_df
+
+#---------------------------------------------------------------------------------- 
+
 def validate_dataset(dataset_path,
                      data_dict_path,
                      schema_mapping, 
