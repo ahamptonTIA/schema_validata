@@ -124,6 +124,7 @@ class Config:
     COMMON_DATETIMES = [
        
                         # US Formats - Date
+
                         "%m/%d/%Y",    # Month/Day/Year (Most Common)
                         "%d/%m/%Y",    # Day/Month/Year (Common)
                         "%b-%d-%Y",    # Month Abbreviation-Day-Year (e.g., Jan-01-2024)
@@ -761,8 +762,8 @@ def read_spreadsheets(file_path,
     df.columns = df.columns.str.strip()
 
     # Check if pyspark.pandas is available
-    if Config.USE_PYSPARK:
-        df = ps.DataFrame(df)
+    # if Config.USE_PYSPARK:
+    #     df = ps.DataFrame(df)
 
     return df
 
@@ -835,8 +836,8 @@ def xlsx_tabs_to_pd_dataframes(file_path,
                                    na_patterns=na_patterns)
 
         # Convert to pyspark.pandas DataFrame if available
-        if Config.USE_PYSPARK:
-            df = ps.DataFrame(df)
+        # if Config.USE_PYSPARK:
+        #     df = ps.DataFrame(df)
             
 
         # Set key for CSV files to ensure consistent dictionary keys
@@ -1157,10 +1158,10 @@ def read_df_with_optimal_dtypes(file_path,
     # Initialize empty data type dictionary
     dtypes = {}
 
-    if Config.USE_PYSPARK:
-        file_path = to_dbfs_path(file_path)
-    else:
-        file_path = db_path_to_local(file_path)
+    # if Config.USE_PYSPARK:
+    #     file_path = to_dbfs_path(file_path)
+    # else:
+    file_path = db_path_to_local(file_path)
 
     # Read the sheet without specifying initial data types   
     df = read_spreadsheet_with_params(file_path, sheet_name, str, na_values)
@@ -1187,12 +1188,12 @@ def read_df_with_optimal_dtypes(file_path,
                                       read_as_na)
 
     # Identify potential leading zeros for each column
-    is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
+    # is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
     for col in df.columns:
         non_null_values = df[col].dropna()
         
-        if is_spark_pandas:
-            non_null_values = non_null_values.to_numpy()
+        # if is_spark_pandas:
+        #     non_null_values = non_null_values.to_numpy()
 
         if len(non_null_values) == 0:
             dtypes[col] = object
@@ -2736,7 +2737,7 @@ def load_files_to_sql(files, include_tables=[]):
                 continue
             
             # Read the file into a dictionary of DataFrames
-            dfs = read_csv_or_excel_to_df(f)
+            dfs = read_csv_or_excel_to_df(f, infer=True)
             
             for tn, df in dfs.items():
                 # Skip the table if its name is not in the include_tables list
