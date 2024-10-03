@@ -2377,8 +2377,7 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
                             unique_column=unique_column)
 
     # Convert the column to strings for comparison
-    df_copy[column_name] = df_copy[column_name].astype(str)
-
+    df_copy.loc[:, column_name] = df_copy[column_name].astype(str)
 
     # Create a set of allowed values for efficient lookup
     allowed_values_set = set(str(value) for value in allowed_values)
