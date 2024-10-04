@@ -3135,6 +3135,7 @@ def find_errors_with_sql(data_dict_path, files, sheet_name=None):
         error_level = str(row['Level'])
         error_message = str(row['Message'])
         
+        print(f'Running query: {sql_statement}')
         if conn == 'pyspark_pandas':
             # Get rows that meet the condition specified in the SQL statement
             error_rows = get_rows_with_condition_spark(tables, sql_statement, error_message, error_level)
@@ -3161,13 +3162,13 @@ def generate_integrity_summary(data_integrity_df):
 
     Returns:
     pd.DataFrame: A summary DataFrame with columns 
-                ['Primary_table', 'SQL_Error_Query', 'Message', 
-                'Level', 'Row Quantity', 'Row Percentage'].
+                ['Primary_table', 'Message', 
+                'Level', 'Row Quantity'].
     """
     # Define the schema for the summary DataFrame
     summ_schema = [
-        'Primary_table', 'SQL_Error_Query', 'Message', 
-        'Level', 'Row Quantity', 'Row Percentage'
+        'Primary_table', 'Message', 
+        'Level', 'Row Quantity', 
     ]
 
     # Create an empty DataFrame with the defined schema
@@ -3175,21 +3176,14 @@ def generate_integrity_summary(data_integrity_df):
 
     # Check if the input DataFrame is not empty
     if len(data_integrity_df) > 0:
-        # Calculate the total number of rows in the input DataFrame
-        total_rows = len(data_integrity_df)
 
         # Group by the first four columns and count the occurrences
         summary_df = (
             data_integrity_df
-            .groupby(summ_schema[0:4])
+            .groupby(summ_schema[0:3])
             .size()
             .reset_index(name='Row Quantity')
         )
-
-        # Calculate the row percentage
-        summary_df['Row Percentage'] = (
-            summary_df['Row Quantity'] / total_rows
-        ) * 100
 
         # If the summary DataFrame is empty, use the template DataFrame
         if summary_df.empty:
