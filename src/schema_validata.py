@@ -1243,7 +1243,7 @@ def infer_data_types(series):
     if 'pyspark.pandas.series.Series' in str(type(series)):
         series = series.to_pandas()
 
-        non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
+    non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
     if len(non_null_values) == 0:
         return "Null-Unknown"
     else:
