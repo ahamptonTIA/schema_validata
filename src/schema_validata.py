@@ -15,9 +15,11 @@ import numpy as np                          # Library for numerical operations
 try:
     import pyspark
     import pyspark.pandas as ps             # Library for data manipulation and analysis with Spark
-    from pyspark.sql.types import BooleanType, IntegerType, FloatType, TimestampType, StringType, DateType
+    import pyspark.sql.functions as F
+    from pyspark.sql.types import IntegerType, FloatType, StringType, DateType, TimestampType, BooleanType
     from pyspark.sql import SparkSession
     pyspark_available = True
+
 except ImportError:
     print("pyspark.pandas is not available in the session.")
     pyspark_available = False
@@ -576,43 +578,35 @@ def infer_datetime_column(df, column_name):
         otherwise the unaltered column is returned.
     """
     is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
+    _s = df[column_name].to_pandas() if is_spark_pandas else df[column_name]
+    orig_series = _s.copy()
 
-    if is_spark_pandas:
-        # Get the Series for the target column directly and convert it to pandas Series
-        column = df[column_name].to_pandas()
-    else:
-        column = df[column_name].copy()
-
-    string_column = df[column_name].astype(str).replace(r'^\s+$', pd.NA, regex=True).dropna()
-        
+    string_column = _s.astype(str).replace(r'^\s+$', pd.NA, regex=True).dropna()
     if len(string_column) == 0:
-        return column_copy
-    
+        return df[column_name] if is_spark_pandas else orig_series
+
     if pd.api.types.is_string_dtype(string_column):
         try:
-            converted_numeric = pd.to_numeric(string_column)
-            if pd.api.types.is_integer_dtype(converted_numeric):
-                return column_copy
+            if pd.api.types.is_integer_dtype(pd.to_numeric(string_column)):
+                return df[column_name] if is_spark_pandas else orig_series
         except:
-            is_timestamp = all(column_is_timestamp(df, column_name, ts_format) for ts_format in Config.COMMON_TIMESTAMPS)
-            if is_timestamp:
-                return column_copy
+            if all(column_is_timestamp(df, column_name, ts_format) for ts_format in Config.COMMON_TIMESTAMPS):
+                return df[column_name] if is_spark_pandas else orig_series
 
             for date_format in Config.COMMON_DATETIMES:
                 try:
-                    string_column = pd.to_datetime(string_column, format=date_format)
-                    return string_column
+                    converted_series = pd.to_datetime(string_column, format=date_format)
+                    return ps.Series(converted_series) if is_spark_pandas else converted_series
                 except:
                     pass
 
             try:
-                if pd.api.types.is_string_dtype(string_column):
-                    string_column = column_copy.apply(dt_parser.parse)
-                    return string_column
+                converted_series = orig_series.apply(dt_parser.parse)
+                return ps.Series(converted_series) if is_spark_pandas else converted_series
             except:
                 pass
 
-    return column_copy
+    return df[column_name] if is_spark_pandas else orig_series
 
 # ----------------------------------------------------------------------------------
 
@@ -1245,17 +1239,14 @@ def infer_data_types(series):
         "Null-Unknown", "Boolean", "Integer", "Float", 
         "Datetime", "String", or "Other".
     """
-    is_pandas = isinstance(series, pd.Series)
-    is_spark_pandas = 'pyspark.pandas.series.Series' in str(type(series))
 
-    if is_pandas:
+    if 'pyspark.pandas.series.Series' in str(type(series)):
+        series = series.to_pandas()
+
         non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
-    elif is_spark_pandas:
-        non_null_values = series.replace(r'^\s+$', None, regex=True).dropna().to_numpy()
-        
     if len(non_null_values) == 0:
         return "Null-Unknown"
-    elif is_pandas:
+    else:
         if pd.api.types.is_bool_dtype(non_null_values):
             return "Boolean"
         elif pd.api.types.is_integer_dtype(non_null_values):
@@ -1281,23 +1272,7 @@ def infer_data_types(series):
                     return "String"
         else:
             return "Other"
-    elif is_spark_pandas:
-
-        spark_type = series.spark.data_type
-        if isinstance(spark_type, BooleanType):
-            return "Boolean"
-        elif isinstance(spark_type, IntegerType):
-            return "Integer"
-        elif isinstance(spark_type, FloatType):
-            return "Float"
-        elif isinstance(spark_type, (TimestampType, DateType)):
-            return "Datetime"
-        elif isinstance(spark_type, StringType):
-            return "String"
-        else:
-            return "Other"
-    else:
-        raise ValueError("Input must be a pandas or spark.pandas Series.")
+    
 
 #---------------------------------------------------------------------------------- 
 
@@ -2704,6 +2679,68 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
     
 #----------------------------------------------------------------------------------
 
+def infer_and_replace_view_schema(spark, view_name):
+    """
+    Infers the optimal data types for columns in a Spark view and replaces the view
+    with a new one using the inferred schema.
+
+    Parameters
+    ----------
+    spark : SparkSession
+        A SparkSession instance.
+    view_name : str
+        The name of the Spark view to examine and replace.
+
+    Returns
+    -------
+    None
+    """
+
+    # Get the existing view as a DataFrame
+    existing_view_df = spark.sql(f"SELECT * FROM {view_name}")
+
+    # Convert the Spark DataFrame to a Pandas DataFrame
+    pd_df = existing_view_df.toPandas()
+
+    # Infer data types based on all values
+    # df_inferred = pd_df.infer_objects()
+
+    dtypes = {}
+    for col in pd_df.columns:
+        non_null_values = pd_df[col].dropna()
+        
+        if len(non_null_values) == 0:
+            dtypes[col] = object
+        elif identify_leading_zeros(non_null_values):
+            dtypes[col] = str  # Preserve leading zeros
+        elif pd.api.types.is_bool_dtype(non_null_values):
+            dtypes[col] = bool           
+        elif pd.api.types.is_numeric_dtype(non_null_values):
+            dtypes[col] = check_all_int(non_null_values)
+        elif pd.api.types.is_string_dtype(non_null_values) or \
+             pd.api.types.is_categorical_dtype(non_null_values):
+            dtypes[col] = check_all_int(non_null_values)
+        else:
+            dtypes[col] = str
+
+    try:
+        for col in pd_df.columns:
+            pd_df[col] = infer_datetime_column(pd_df, col)
+    except:
+        pass  # leave it be
+
+    
+    # Convert the Pandas DataFrame back to a Spark DataFrame
+    print(pd_df.dtypes)
+    inferred_schema_df = ps.from_pandas(pd_df).to_spark()
+    inferred_schema_df.createOrReplaceTempView(view_name)
+
+    # Replace the view with the new DataFrame
+    inferred_schema_df.createOrReplaceTempView(view_name)
+    spark.catalog.refreshTable(view_name)
+
+#----------------------------------------------------------------------------------
+
 def load_files_to_sql(files, include_tables=[]):
     """
     Loads CSV files into Spark SQL tables if use_spark is True, otherwise into an in-memory SQLite database.
@@ -2750,6 +2787,9 @@ def load_files_to_sql(files, include_tables=[]):
                 else:
                     ps_df = df
                 ps_df.to_spark().createOrReplaceTempView(tn)
+
+                infer_and_replace_view_schema(Config.SPARK_SESSION, tn)
+
                 # Clean up the DataFrame from memory
                 del df
 
