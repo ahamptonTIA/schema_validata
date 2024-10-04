@@ -3135,7 +3135,7 @@ def find_errors_with_sql(data_dict_path, files, sheet_name=None):
         error_level = str(row['Level'])
         error_message = str(row['Message'])
         
-        print(f'Running query: {sql_statement}')
+        print(f'Running query: \n\t\t{sql_statement}')
         if conn == 'pyspark_pandas':
             # Get rows that meet the condition specified in the SQL statement
             error_rows = get_rows_with_condition_spark(tables, sql_statement, error_message, error_level)
