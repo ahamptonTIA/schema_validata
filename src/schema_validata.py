@@ -2732,7 +2732,7 @@ def infer_and_replace_view_schema(spark, view_name):
     for col in pd_df.columns:
         non_null_values = get_non_null_values(pd_df[col])
         
-        if len(non_null_values) == 0 or all(pd_df[col].replace(Config.NA_VALUES, "").str.strip() == ""):
+        if len(non_null_values) == 0:
             dtypes[col] = str  # Ensure empty columns end up as string
         elif identify_leading_zeros(non_null_values):
             dtypes[col] = str  # Preserve leading zeros
