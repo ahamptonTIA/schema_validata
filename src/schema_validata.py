@@ -1078,7 +1078,30 @@ def check_all_int(df_col):
         return 'Int64' if all_ints else 'Float64'
     else:
         return str
-    
+
+#---------------------------------------------------------------------------------- 
+
+def get_non_null_values(series):
+    """
+    Replaces specified NA values in a pandas Series with pd.NA, drops NA values,
+    and removes rows with empty strings after stripping whitespace.
+
+    Parameters
+    ----------
+    series : pandas.Series
+        The input pandas Series to process.
+
+    Returns
+    -------
+    pandas.Series
+        A Series with non-null and non-empty values.
+    """
+    non_null_values = series.replace(Config.NA_VALUES, pd.NA).dropna()
+    non_null_values = non_null_values[non_null_values.replace(Config.NA_VALUES, "")]
+    non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
+
+    return non_null_values
+
 #---------------------------------------------------------------------------------- 
 
 def read_spreadsheet_with_params(file_path, 
@@ -1184,7 +1207,8 @@ def read_df_with_optimal_dtypes(file_path,
     # Identify potential leading zeros for each column
     # is_spark_pandas = 'pyspark.pandas.frame.DataFrame' in str(type(df))
     for col in df.columns:
-        non_null_values = df[col].dropna()
+        non_null_values = get_non_null_values(df[col])
+
         
         # if is_spark_pandas:
         #     non_null_values = non_null_values.to_numpy()
@@ -1243,7 +1267,9 @@ def infer_data_types(series):
     if 'pyspark.pandas.series.Series' in str(type(series)):
         series = series.to_pandas()
 
-    non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
+    # non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
+    non_null_values = get_non_null_values(series)
+
     if len(non_null_values) == 0:
         return "Null-Unknown"
     else:
@@ -2703,14 +2729,12 @@ def infer_and_replace_view_schema(spark, view_name):
     pd_df = existing_view_df.toPandas()
 
     # Infer data types based on all values
-    # df_inferred = pd_df.infer_objects()
-
     dtypes = {}
     for col in pd_df.columns:
-        non_null_values = pd_df[col].dropna()
+        non_null_values = get_non_null_values(pd_df[col])
         
-        if len(non_null_values) == 0:
-            dtypes[col] = object
+        if len(non_null_values) == 0 or all(pd_df[col].replace(Config.NA_VALUES, "").str.strip() == ""):
+            dtypes[col] = str  # Ensure empty columns end up as string
         elif identify_leading_zeros(non_null_values):
             dtypes[col] = str  # Preserve leading zeros
         elif pd.api.types.is_bool_dtype(non_null_values):
@@ -2729,9 +2753,7 @@ def infer_and_replace_view_schema(spark, view_name):
     except:
         pass  # leave it be
 
-    
     # Convert the Pandas DataFrame back to a Spark DataFrame
-    print(pd_df.dtypes)
     inferred_schema_df = ps.from_pandas(pd_df).to_spark()
     inferred_schema_df.createOrReplaceTempView(view_name)
 
