@@ -1097,7 +1097,6 @@ def get_non_null_values(series):
         A Series with non-null and non-empty values.
     """
     non_null_values = series.replace(Config.NA_VALUES, pd.NA).dropna()
-    non_null_values = non_null_values[non_null_values.replace(Config.NA_VALUES, "")]
     non_null_values = series.replace(r'^\s+$', pd.NA, regex=True).dropna()
 
     return non_null_values
