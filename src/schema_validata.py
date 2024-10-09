@@ -2377,7 +2377,9 @@ def value_errors_unallowed(df, column_name, allowed_values, unique_column=None):
                             unique_column=unique_column)
 
     # Convert the column to strings for comparison
-    df_copy.loc[:, column_name] = df_copy[column_name].astype(str)
+    
+    # df_copy.loc[:, column_name] = df_copy[column_name].astype(str)
+    df_copy = df_copy.assign(column_name=df_copy[column_name].astype(str))
 
     # Create a set of allowed values for efficient lookup
     allowed_values_set = set(str(value) for value in allowed_values)
@@ -2970,30 +2972,44 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
 
     results = []
     try:
-        # Execute the modified SQL statement
-        result_df = Config.SPARK_SESSION.sql(modified_sql).toPandas()
 
-        if result_df.empty:
-            # Append error information if no rows are returned
-            results.append({
-                "Primary_table"     : primary_table,
-                "SQL_Error_Query"   : sql_statement,
-                "Message"           : 'OK-No rows returned',
-                "Level"             : 'Good',
-                "Lookup_Column"     : '',
-                "Lookup_Value"      : ''
-            })
+        q_tbls = extract_all_table_names(sql_statement)
+        
+        if not all(t in tables for t in q_tbls):
+             results.append({
+            "Primary_table"     : primary_table,
+            "SQL_Error_Query"   : sql_statement,
+            "Message"           : f"Query could not be completed, one or more referenced tables not found: [{q_tbls}]",
+            "Level"             : 'Skipped Query',
+            "Lookup_Column"     : '',
+            "Lookup_Value"      : ''
+        })
+
         else:
-            # Prepare the results for each row in the result DataFrame
-            for row_index, row in result_df.iterrows():
+            # Execute the modified SQL statement
+            result_df = Config.SPARK_SESSION.sql(modified_sql).toPandas()
+
+            if result_df.empty:
+                # Append error information if no rows are returned
                 results.append({
                     "Primary_table"     : primary_table,
                     "SQL_Error_Query"   : sql_statement,
-                    "Message"           : error_message,
-                    "Level"             : error_level,
-                    "Lookup_Column"     : unique_column,
-                    "Lookup_Value"      : row[unique_column]
+                    "Message"           : 'OK-No rows returned',
+                    "Level"             : 'Good',
+                    "Lookup_Column"     : '',
+                    "Lookup_Value"      : ''
                 })
+            else:
+                # Prepare the results for each row in the result DataFrame
+                for row_index, row in result_df.iterrows():
+                    results.append({
+                        "Primary_table"     : primary_table,
+                        "SQL_Error_Query"   : sql_statement,
+                        "Message"           : error_message,
+                        "Level"             : error_level,
+                        "Lookup_Column"     : unique_column,
+                        "Lookup_Value"      : row[unique_column]
+                    })
     except Exception as e:
         # Append error information if the SQL execution fails
         results.append({
@@ -3115,9 +3131,9 @@ def find_errors_with_sql(data_dict_path, files, sheet_name=None):
     # Check if 'Data_Integrity' sheet exists in the Excel file
     if sheet_name in pd.ExcelFile(data_dict_path).sheet_names:
         if Config.USE_PYSPARK:
-            rules_df = ps.read_excel(to_dbfs_path(data_dict_path), sheet_name='Data_Integrity')
+            rules_df = ps.read_excel(to_dbfs_path(data_dict_path), sheet_name=sheet_name)
         else:
-            rules_df = pd.read_excel(data_dict_path, sheet_name='Data_Integrity')
+            rules_df = pd.read_excel(data_dict_path, sheet_name=sheet_name)
 
     # Extract table references from each SQL rule
     for index, row in rules_df.iterrows():
@@ -3134,8 +3150,8 @@ def find_errors_with_sql(data_dict_path, files, sheet_name=None):
         sql_statement = str(row['SQL Error Query'])
         error_level = str(row['Level'])
         error_message = str(row['Message'])
-        
-        print(f'Running query: \n\t\t{sql_statement}')
+
+        print(f'\nRunning query: \n\t\t{sql_statement}')
         if conn == 'pyspark_pandas':
             # Get rows that meet the condition specified in the SQL statement
             error_rows = get_rows_with_condition_spark(tables, sql_statement, error_message, error_level)
