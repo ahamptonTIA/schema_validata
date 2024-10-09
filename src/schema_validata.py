@@ -2951,14 +2951,6 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
     primary_table = extract_primary_table(sql_statement)
 
 
-    # Modify the SQL statement to select the unique ID column
-    modified_sql = f"""
-                    SELECT 
-                        pt.{unique_column}
-                    FROM ({sql_statement}) AS sq
-                    LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
-                    """
-
     results = []
     try:
 
@@ -2975,7 +2967,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
             })
 
         else:
-
+            
             # Get the DataFrame for the primary table
             primary_df = Config.SPARK_SESSION.table(primary_table)
 
@@ -2985,6 +2977,14 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
             else:
                 unique_column = get_best_uid_column(primary_df.pandas_api())
 
+            # Modify the SQL statement to select the unique ID column
+            modified_sql = f"""
+                            SELECT 
+                                pt.{unique_column}
+                            FROM ({sql_statement}) AS sq
+                            LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
+                            """
+            
             # Register the primary table as a temporary view
             primary_df.createOrReplaceTempView("primary_table")   
                     
