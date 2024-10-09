@@ -2957,14 +2957,16 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
         q_tbls = extract_all_table_names(sql_statement)
         
         if not all(t in tables for t in q_tbls) or primary_table not in tables:
-             results.append({
-                "Primary_table"     : primary_table,
-                "SQL_Error_Query"   : sql_statement,
-                "Message"           : f"Query skipped, one or more referenced tables not found: [{q_tbls}]",
-                "Level"             : 'Skipped Query',
-                "Lookup_Column"     : '',
-                "Lookup_Value"      : ''
+            skip_msg = f"Query skipped, one or more referenced tables not found: [{q_tbls}]"
+            results.append({
+            "Primary_table"     : primary_table,
+            "SQL_Error_Query"   : sql_statement,
+            "Message"           : skip_msg,
+            "Level"             : 'Skipped Query',
+            "Lookup_Column"     : '',
+            "Lookup_Value"      : ''
             })
+            print(skip_msg)
 
         else:
             
@@ -3143,7 +3145,7 @@ def find_errors_with_sql(data_dict_path, files, sheet_name=None):
         sql_ref_tables.append(extract_primary_table(sql_statement))
         sql_ref_tables.extend(extract_all_table_names(sql_statement)) 
     sql_ref_tables = list(set(sql_ref_tables))
-    
+    print(f'Loading tables: {sql_ref_tables}')
     # Load CSV files into an in-memory SQLite database, including only the referenced tables
     conn, tables = load_files_to_sql(files, include_tables=list(sql_ref_tables))
 
