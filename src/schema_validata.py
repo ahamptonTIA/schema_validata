@@ -3143,7 +3143,9 @@ def find_errors_with_sql(data_dict_path, files, sheet_name=None):
     for index, row in rules_df.iterrows():
         sql_statement = row['SQL Error Query']
         sql_ref_tables.append(extract_primary_table(sql_statement))
+        print(extract_primary_table(sql_statement))
         sql_ref_tables.extend(extract_all_table_names(sql_statement)) 
+        print(extract_all_table_names(sql_statement))
     sql_ref_tables = list(set(sql_ref_tables))
     print(f'Loading tables: {sql_ref_tables}')
     # Load CSV files into an in-memory SQLite database, including only the referenced tables
