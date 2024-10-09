@@ -2950,17 +2950,6 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
     # Extract the primary table name from the SQL statement
     primary_table = extract_primary_table(sql_statement)
 
-    # Get the DataFrame for the primary table
-    primary_df = Config.SPARK_SESSION.table(primary_table)
-
-    # Get the best unique ID column from the primary table
-    if primary_df.count() < 10000:
-        unique_column = get_best_uid_column(primary_df.toPandas())
-    else:
-        unique_column = get_best_uid_column(primary_df.pandas_api())
-
-    # Register the primary table as a temporary view
-    primary_df.createOrReplaceTempView("primary_table")
 
     # Modify the SQL statement to select the unique ID column
     modified_sql = f"""
@@ -2977,15 +2966,28 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
         
         if not all(t in tables for t in q_tbls):
              results.append({
-            "Primary_table"     : primary_table,
-            "SQL_Error_Query"   : sql_statement,
-            "Message"           : f"Query could not be completed, one or more referenced tables not found: [{q_tbls}]",
-            "Level"             : 'Skipped Query',
-            "Lookup_Column"     : '',
-            "Lookup_Value"      : ''
-        })
+                "Primary_table"     : primary_table,
+                "SQL_Error_Query"   : sql_statement,
+                "Message"           : f"Query skipped, one or more referenced tables not found: [{q_tbls}]",
+                "Level"             : 'Skipped Query',
+                "Lookup_Column"     : '',
+                "Lookup_Value"      : ''
+            })
 
         else:
+
+            # Get the DataFrame for the primary table
+            primary_df = Config.SPARK_SESSION.table(primary_table)
+
+            # Get the best unique ID column from the primary table
+            if primary_df.count() < 10000:
+                unique_column = get_best_uid_column(primary_df.toPandas())
+            else:
+                unique_column = get_best_uid_column(primary_df.pandas_api())
+
+            # Register the primary table as a temporary view
+            primary_df.createOrReplaceTempView("primary_table")   
+                    
             # Execute the modified SQL statement
             result_df = Config.SPARK_SESSION.sql(modified_sql).toPandas()
 
