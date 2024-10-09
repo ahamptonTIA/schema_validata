@@ -2956,7 +2956,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
 
         q_tbls = extract_all_table_names(sql_statement)
         
-        if not all(t in tables for t in q_tbls):
+        if not all(t in tables for t in q_tbls) or primary_table not in tables:
              results.append({
                 "Primary_table"     : primary_table,
                 "SQL_Error_Query"   : sql_statement,
