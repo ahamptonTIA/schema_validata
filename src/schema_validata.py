@@ -3046,7 +3046,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
                         "Message"           : error_message,
                         "Level"             : error_level,
                         "Lookup_Column"     : unique_column,
-                        "Lookup_Value"      : row['Lookup_Value']
+                        "Lookup_Value"      : row[unique_column]
                     })
     except Exception as e:
         # Append error information if the SQL execution fails
