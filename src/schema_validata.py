@@ -2760,7 +2760,7 @@ def infer_and_replace_view_schema(spark, view_name):
 
     # Replace the view with the new DataFrame
     inferred_schema_df.createOrReplaceTempView(view_name)
-    spark.catalog.refreshTable(view_name)
+    Config.SPARK_SESSION.catalog.refreshTable(view_name)
 
 #----------------------------------------------------------------------------------
 
@@ -3009,15 +3009,6 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
                 unique_column = get_best_uid_column(primary_df.toPandas())
             else:
                 unique_column = get_best_uid_column(primary_df.pandas_api())
-
-            #Modify the SQL statement to select the unique ID column
-            
-            # modified_sql = f"""
-            #                 SELECT 
-            #                     pt.{unique_column} AS Lookup_Value
-            #                 FROM ({sql_statement}) AS sq
-            #                 LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
-            #                 """
 
             # Register the primary table as a temporary view
             primary_df.createOrReplaceTempView("primary_table")   
