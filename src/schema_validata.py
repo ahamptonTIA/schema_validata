@@ -2982,7 +2982,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
             # Modify the SQL statement to select the unique ID column
             modified_sql = f"""
                             SELECT 
-                                pt.{unique_column}
+                                pt.{unique_column} AS Lookup_Value
                             FROM ({sql_statement}) AS sq
                             LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
                             """
@@ -3012,7 +3012,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
                         "Message"           : error_message,
                         "Level"             : error_level,
                         "Lookup_Column"     : unique_column,
-                        "Lookup_Value"      : row[unique_column]
+                        "Lookup_Value"      : row['Lookup_Value']
                     })
     except Exception as e:
         # Append error information if the SQL execution fails
