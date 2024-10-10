@@ -2927,6 +2927,41 @@ def extract_all_table_names(sql_statement):
 
 #----------------------------------------------------------------------------------
 
+def handle_duplicate_columns(df):
+    """Renames duplicate columns in a DataFrame, prefixing them with a number.
+
+    Args:
+        df (pd.DataFrame or ps.DataFrame): The input DataFrame.
+
+    Returns:
+        pd.DataFrame or ps.DataFrame: The DataFrame with unique column names.
+    """
+
+    # Get a list of unique column names
+    unique_columns = df.columns.unique()
+
+    # Create a dictionary to map duplicate column names to their prefixed versions
+    column_map = {}
+    for column in df.columns:
+        if column in column_map:
+            # If the column is already in the map, prefix it with a number
+            count = column_map[column] + 1
+            column_map[column] = count
+            new_column_name = f"{count}_{column}"
+        else:
+            # If the column is unique, add it to the map with a count of 1
+            column_map[column] = 1
+            new_column_name = column
+
+        column_map[column] = new_column_name
+
+    # Rename the columns using the mapping
+    df = df.rename(columns=column_map)
+
+    return df
+
+#----------------------------------------------------------------------------------
+
 def get_rows_with_condition_spark(tables, sql_statement, error_message, error_level='error'):
     """
     Returns rows with a unique ID column value where a condition is true in the first table listed in an SQL statement.
@@ -2980,19 +3015,21 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
 
             #Modify the SQL statement to select the unique ID column
             
-            modified_sql = f"""
-                            SELECT 
-                                pt.{unique_column} AS Lookup_Value
-                            FROM ({sql_statement}) AS sq
-                            LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
-                            """
+            # modified_sql = f"""
+            #                 SELECT 
+            #                     pt.{unique_column} AS Lookup_Value
+            #                 FROM ({sql_statement}) AS sq
+            #                 LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
+            #                 """
 
             # Register the primary table as a temporary view
             primary_df.createOrReplaceTempView("primary_table")   
                     
             # Execute the modified SQL statement
-            result_df = Config.SPARK_SESSION.sql(modified_sql).toPandas()
+            result_df = Config.SPARK_SESSION.sql(sql_statement).toPandas()
 
+            result_df = handle_duplicate_columns(result_df)
+            
             if result_df.empty:
                 # Append error information if no rows are returned
                 results.append({
