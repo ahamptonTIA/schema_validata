@@ -2936,27 +2936,24 @@ def handle_duplicate_columns(df):
     Returns:
         pd.DataFrame or ps.DataFrame: The DataFrame with unique column names.
     """
+    # Create a dictionary to count occurrences of each column name
+    column_count = {}
+    new_columns = []
 
-    # Get a list of unique column names
-    unique_columns = df.columns.unique()
-
-    # Create a dictionary to map duplicate column names to their postfixed versions
-    column_map = {}
     for column in df.columns:
-        if column in column_map:
-            # If the column is already in the map, postfix it with a number
-            count = column_map[column] + 1
-            column_map[column] = count
-            new_column_name = f"{column}_{str(count)}"
+        if column in column_count:
+            # Increment the count and create a new column name with the count
+            column_count[column] += 1
+            new_column_name = f"{column}_{column_count[column]}"
         else:
-            # If the column is unique, add it to the map with a count of 1
-            column_map[column] = 1
+            # Initialize the count for the column
+            column_count[column] = 0
             new_column_name = column
 
-        column_map[column] = new_column_name
+        new_columns.append(new_column_name)
 
-    # Rename the columns using the mapping
-    df = df.rename(columns=column_map)
+    # Rename the columns in the DataFrame
+    df.columns = new_columns
 
     return df
 
@@ -3030,7 +3027,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
 
             result_df = handle_duplicate_columns(result_df)
 
-            if result_df.empty:
+            if len(result_df) == 0:
                 # Append error information if no rows are returned
                 results.append({
                     "Primary_table"     : primary_table,
@@ -3056,7 +3053,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
         results.append({
             "Primary_table"     : primary_table,
             "SQL_Error_Query"   : sql_statement,
-            "Message"           : f"Query SQL failed: {str(e)}",
+            "Message"           : f"SQL Query Failed: {str(e)}",
             "Level"             : 'SQL Error',
             "Lookup_Column"     : '',
             "Lookup_Value"      : ''
