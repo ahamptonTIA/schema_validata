@@ -2788,6 +2788,7 @@ def load_files_to_sql(files, include_tables=[]):
     if Config.USE_PYSPARK:
         print(f"Creating tables in spark with version: {Config.SPARK_SESSION.version}")
         for f in files:
+            print('\t-Loading: {f}...')
             # Get the base name of the file without extension
             base_name = os.path.splitext(os.path.basename(f))[0]
             
@@ -2814,7 +2815,7 @@ def load_files_to_sql(files, include_tables=[]):
                 infer_and_replace_view_schema(Config.SPARK_SESSION, tn)
 
                 # Clean up the DataFrame from memory
-                del df
+                # del df
 
         return 'pyspark_pandas', table_names
 
@@ -2946,16 +2947,14 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
     pd.DataFrame
         A DataFrame containing the primary table name, SQL error query, lookup column, and lookup value.
     """
+    results = []
 
     # Extract the primary table name from the SQL statement
     primary_table = extract_primary_table(sql_statement)
+    q_tbls = extract_all_table_names(sql_statement)
 
-
-    results = []
     try:
 
-        q_tbls = extract_all_table_names(sql_statement)
-        
         if not all(t in tables for t in q_tbls) or primary_table not in tables:
             skip_msg = f"Query skipped, one or more referenced tables not found: [{q_tbls}]"
             results.append({
@@ -2980,12 +2979,19 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
                 unique_column = get_best_uid_column(primary_df.pandas_api())
 
             #Modify the SQL statement to select the unique ID column
+            
+            # modified_sql = f"""
+            #                 SELECT 
+            #                     pt.{unique_column} AS Lookup_Value
+            #                 FROM ({sql_statement}) AS sq
+            #                 LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
+            #                 """
+
             modified_sql = f"""
-                            SELECT 
-                                pt.{unique_column} AS Lookup_Value
+                            SELECT
+                                {col(f"sq.{unique_column}")} AS Lookup_Value
                             FROM ({sql_statement}) AS sq
-                            LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
-                            """
+                        """
 
             # Register the primary table as a temporary view
             primary_df.createOrReplaceTempView("primary_table")   
@@ -3020,7 +3026,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
             "Primary_table"     : primary_table,
             "SQL_Error_Query"   : sql_statement,
             "Message"           : f"Query SQL failed: {str(e)}",
-            "Level"             : 'Error',
+            "Level"             : 'SQL Error',
             "Lookup_Column"     : '',
             "Lookup_Value"      : ''
         })
@@ -3143,9 +3149,7 @@ def find_errors_with_sql(data_dict_path, files, sheet_name=None):
     for index, row in rules_df.iterrows():
         sql_statement = row['SQL Error Query']
         sql_ref_tables.append(extract_primary_table(sql_statement))
-        print(extract_primary_table(sql_statement))
         sql_ref_tables.extend(extract_all_table_names(sql_statement)) 
-        print(extract_all_table_names(sql_statement))
     sql_ref_tables = list(set(sql_ref_tables))
     print(f'Loading tables: {sql_ref_tables}')
     # Load CSV files into an in-memory SQLite database, including only the referenced tables
