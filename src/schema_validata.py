@@ -2815,7 +2815,7 @@ def load_files_to_sql(files, include_tables=[]):
                 infer_and_replace_view_schema(Config.SPARK_SESSION, tn)
 
                 # Clean up the DataFrame from memory
-                del df
+                # del df
 
         return 'pyspark_pandas', table_names
 
