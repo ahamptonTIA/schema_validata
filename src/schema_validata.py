@@ -150,9 +150,9 @@ class Config:
 
     # Standard pandas null value reps with other common formats, values will be read in as nulls
     NA_VALUES = ['', ' ', '#N/A', '#N/A N/A', '#NA', '-1.#IND', '-1.#QNAN', '-NaN', '-nan','1.#IND', 
-                         '1.#QNAN', '<NA>', 'N/A', 'NA', 'NULL', 'NaN', 'n/a','nan', 'null', 'Null', 'NULL',
-                         np.nan, None, 'None'
-                        ]   
+                 '1.#QNAN', '<NA>', 'N/A', 'NA', 'NULL', 'NaN', 'n/a','nan', 'null', 'Null', 'NULL',
+                 '#REF!', np.nan, None, 'None'
+                ]   
 
     # Standard pattern reps for nulls, values will be converted to nulls
     NA_PATTERNS = [
@@ -2815,7 +2815,7 @@ def load_files_to_sql(files, include_tables=[]):
                 infer_and_replace_view_schema(Config.SPARK_SESSION, tn)
 
                 # Clean up the DataFrame from memory
-                # del df
+                del df
 
         return 'pyspark_pandas', table_names
 
@@ -3238,7 +3238,7 @@ def generate_integrity_summary(data_integrity_df):
             .size()
             .reset_index(name='Row Quantity')
         )
-
+        summary_df = summary_df.loc[(summary_df['Level'] == 'Good') | (summary_df['Level'] == 'SQL Error'), 'Row Quantity'] = None
         # If the summary DataFrame is empty, use the template DataFrame
         if summary_df.empty:
             summary_df = templ_df
@@ -3255,12 +3255,17 @@ def data_integrity(data_dict_path, csvs):
     Calls find_errors_with_sql to get the data integrity DataFrame,
     then passes that DataFrame to generate_integrity_summary to get the summary.
 
-    Parameters:
-    data_dict_path (str): The path to the data dictionary.
-    csvs (list): List of CSV file paths.
+    Parameters
+    ----------
+    data_dict_path : str
+        The path to the data dictionary.
+    csvs : list
+        List of CSV file paths.
 
-    Returns:
-    tuple: A tuple containing the full results DataFrame and the summary DataFrame.
+    Returns
+    -------
+    tuple
+        A tuple containing the full results DataFrame and the summary DataFrame.
     """
     # Perform the data integrity checks
     data_integrity_df = find_errors_with_sql(data_dict_path, csvs)
