@@ -2788,7 +2788,7 @@ def load_files_to_sql(files, include_tables=[]):
     if Config.USE_PYSPARK:
         print(f"Creating tables in spark with version: {Config.SPARK_SESSION.version}")
         for f in files:
-            print('\t-Loading: {f}...')
+            print(f'\t-Loading: {f}...')
             # Get the base name of the file without extension
             base_name = os.path.splitext(os.path.basename(f))[0]
             
