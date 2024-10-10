@@ -3238,7 +3238,13 @@ def generate_integrity_summary(data_integrity_df):
             .size()
             .reset_index(name='Row Quantity')
         )
-        summary_df = summary_df.loc[(summary_df['Level'] == 'Good') | (summary_df['Level'] == 'SQL Error'), 'Row Quantity'] = None
+        summary_df["Row Quantity"] = (
+                                        summary_df["Row Quantity"]
+                                        .where(
+                                            ~(summary_df["Level"].isin(["Good", "SQL Error"]))
+                                        )
+                                    )
+
         # If the summary DataFrame is empty, use the template DataFrame
         if summary_df.empty:
             summary_df = templ_df
