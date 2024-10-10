@@ -2979,7 +2979,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
             else:
                 unique_column = get_best_uid_column(primary_df.pandas_api())
 
-            Modify the SQL statement to select the unique ID column
+            #Modify the SQL statement to select the unique ID column
             modified_sql = f"""
                             SELECT 
                                 pt.{unique_column} AS Lookup_Value
