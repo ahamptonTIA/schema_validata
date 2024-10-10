@@ -2928,7 +2928,7 @@ def extract_all_table_names(sql_statement):
 #----------------------------------------------------------------------------------
 
 def handle_duplicate_columns(df):
-    """Renames duplicate columns in a DataFrame, prefixing them with a number.
+    """Renames duplicate columns in a DataFrame, postfixing them with a number.
 
     Args:
         df (pd.DataFrame or ps.DataFrame): The input DataFrame.
@@ -2940,14 +2940,14 @@ def handle_duplicate_columns(df):
     # Get a list of unique column names
     unique_columns = df.columns.unique()
 
-    # Create a dictionary to map duplicate column names to their prefixed versions
+    # Create a dictionary to map duplicate column names to their postfixed versions
     column_map = {}
     for column in df.columns:
         if column in column_map:
-            # If the column is already in the map, prefix it with a number
+            # If the column is already in the map, postfix it with a number
             count = column_map[column] + 1
             column_map[column] = count
-            new_column_name = f"{count}_{column}"
+            new_column_name = f"{column}_{str(count)}"
         else:
             # If the column is unique, add it to the map with a count of 1
             column_map[column] = 1
@@ -3029,7 +3029,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
             result_df = Config.SPARK_SESSION.sql(sql_statement).toPandas()
 
             result_df = handle_duplicate_columns(result_df)
-            
+
             if result_df.empty:
                 # Append error information if no rows are returned
                 results.append({
