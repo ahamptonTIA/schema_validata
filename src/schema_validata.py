@@ -2804,16 +2804,16 @@ def load_files_to_sql(files, include_tables=[]):
                 if bool(include_tables) and tn not in include_tables:
                     continue
                 
-                table_names.append(tn)
                 # Convert pandas DataFrame to pyspark.pandas DataFrame and create a Spark SQL table
                 if isinstance(df, pd.DataFrame):
                     ps_df = ps.DataFrame(df)
                 else:
                     ps_df = df
                 ps_df.to_spark().createOrReplaceTempView(tn)
-
+                
                 infer_and_replace_view_schema(Config.SPARK_SESSION, tn)
-
+                print(f'\t\t-Loaded: {tn}...')
+                table_names.append(tn)
                 # Clean up the DataFrame from memory
                 # del df
 
@@ -2845,7 +2845,7 @@ def load_files_to_sql(files, include_tables=[]):
                     df = df.to_pandas()
                 df.to_sql(tn, con=conn, if_exists="replace", index=False)
                 # Clean up the DataFrame from memory
-                del df
+                # del df
 
         return conn, table_names
     
