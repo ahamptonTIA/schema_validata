@@ -2980,13 +2980,22 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
                 unique_column = get_best_uid_column(primary_df.pandas_api())
 
             # Modify the SQL statement to select the unique ID column
+            # modified_sql = f"""
+            #                 SELECT 
+            #                     pt.{unique_column} AS Lookup_Value
+            #                 FROM ({sql_statement}) AS sq
+            #                 LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
+            #                 """
+            if 't1.' in sql_statement:
+                sq_alias = 't1.'
+            else: 
+                sq_alias = ''
             modified_sql = f"""
                             SELECT 
                                 pt.{unique_column} AS Lookup_Value
                             FROM ({sql_statement}) AS sq
-                            LEFT JOIN primary_table pt ON sq.{unique_column} = pt.{unique_column}
+                            LEFT JOIN primary_table pt ON sq.{sq_alias}{unique_column} = pt.{unique_column}
                             """
-            
             # Register the primary table as a temporary view
             primary_df.createOrReplaceTempView("primary_table")   
                     
