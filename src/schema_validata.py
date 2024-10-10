@@ -2989,7 +2989,7 @@ def get_rows_with_condition_spark(tables, sql_statement, error_message, error_le
 
             modified_sql = f"""
                             SELECT
-                                {col(f"sq.{unique_column}")} AS Lookup_Value
+                                {F.col(f"sq.{unique_column}")} AS Lookup_Value
                             FROM ({sql_statement}) AS sq
                         """
 
