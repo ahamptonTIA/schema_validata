@@ -2565,6 +2565,7 @@ def value_errors_regex_mismatches(df, column_name, regex_pattern, unique_column=
     return pd.DataFrame(new_columns)[non_null_mask & mismatch_mask]
     
 #---------------------------------------------------------------------------------- 
+
 def get_value_errors(dataset_path, schema_errors, data_dict, 
                      schema_mapping, ignore_errors=['allow_null']):
     """
@@ -2634,46 +2635,44 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
         unique_column = unique_cols[0] if unique_cols else None
         unique_column = get_best_uid_column(df, preferred_column=unique_column)
 
+        required_cols = [k for k in auth_schema.keys() if auth_schema[k]['required']]
+
         if schema_violations:
             for col, errors in schema_violations.items():
                 flagged_errs = list(errors.keys())
-                if 'allow_null' in flagged_errs and 'allow_null' not in ignore_errors:
-                    sheet_v_errors.append(
-                        value_errors_nulls(df, col, unique_column=unique_column)
-                    )
-                if 'unique_value' in flagged_errs and 'unique_value' not in ignore_errors:
-                    sheet_v_errors.append(
-                        value_errors_duplicates(df, col, unique_column=unique_column)
-                    )
-                if 'length' in flagged_errs and 'length' not in ignore_errors:
-                    max_len = errors['length']['expected']
-                    sheet_v_errors.append(
-                        value_errors_length(df, col, max_length=max_len, unique_column=unique_column)
-                    )
-                if 'range_max' in flagged_errs and 'range_max' not in ignore_errors:
-                    rng_max = errors['range_max']['expected']
-                    sheet_v_errors.append(
-                        value_errors_out_of_range(df, col, test_type='max', value=rng_max, unique_column=unique_column)
-                    )
-                if 'range_min' in flagged_errs and 'range_min' not in ignore_errors:
-                    rng_min = errors['range_min']['expected']
-                    sheet_v_errors.append(
-                        value_errors_out_of_range(df, col, test_type='min', value=rng_min, unique_column=unique_column)
-                    )
-                if 'allowed_value_list' in flagged_errs and 'allowed_value_list' not in ignore_errors:
-                    allowed_vals = errors['allowed_value_list']['expected']
-                    sheet_v_errors.append(
-                        value_errors_unallowed(df, col, allowed_values=allowed_vals, unique_column=unique_column)
-                    )
+                col_required = col in required_cols
+                for error_type in ['allow_null', 'unique_value', 'length', 'range_max', 'range_min', 'allowed_value_list']:
+                    if error_type in flagged_errs and error_type not in ignore_errors:
+                        errs = None
+                        if error_type == 'allow_null':
+                            errs = value_errors_nulls(df, col, unique_column=unique_column)
+                        elif error_type == 'unique_value':
+                            errs = value_errors_duplicates(df, col, unique_column=unique_column)
+                        elif error_type == 'length':
+                            max_len = errors['length']['expected']
+                            errs = value_errors_length(df, col, max_length=max_len, unique_column=unique_column)
+                        elif error_type == 'range_max':
+                            rng_max = errors['range_max']['expected']
+                            errs = value_errors_out_of_range(df, col, test_type='max', value=rng_max, unique_column=unique_column)
+                        elif error_type == 'range_min':
+                            rng_min = errors['range_min']['expected']
+                            errs = value_errors_out_of_range(df, col, test_type='min', value=rng_min, unique_column=unique_column)
+                        elif error_type == 'allowed_value_list':
+                            allowed_vals = errors['allowed_value_list']['expected']
+                            errs = value_errors_unallowed(df, col, allowed_values=allowed_vals, unique_column=unique_column)
+                        
+                        if len(errs) > 0:
+                            sheet_v_errors.append(errs.assign(Required=col_required))
 
         if 'regex_pattern' not in ignore_errors:
             for col in df.columns:
+                errs = None
+                col_required = col in required_cols
                 if auth_schema.get(col):
                     ptrn = auth_schema[col].get('regex_pattern')
                     if isinstance(ptrn, str) and ptrn not in Config.NA_VALUES:
-                        sheet_v_errors.append(
-                            value_errors_regex_mismatches(df, col, regex_pattern=ptrn, unique_column=unique_column)
-                        )
+                        errs = value_errors_regex_mismatches(df, col, regex_pattern=ptrn, unique_column=unique_column)
+                        if len(errs) > 0: sheet_v_errors.append(errs.assign(Required=col_required))
 
         merged_errors_list = []
         if bool(sheet_v_errors):
@@ -2689,11 +2688,6 @@ def get_value_errors(dataset_path, schema_errors, data_dict,
             merged_errors_list = [
                             pd.DataFrame([{
                                             "Error_Type": "None",
-                                            # "Error_Value": 'N/A',
-                                            # "Sheet_Row": 'N/A',  
-                                            # "Column_Name": 'N/A',
-                                            # "Lookup_Column": 'N/A',
-                                            # "Lookup_Value" : 'N/A'
                                         }])
                             ]
 
