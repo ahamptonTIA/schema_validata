@@ -2168,7 +2168,8 @@ def validate_schema(observed_schema,
         # Iterate over columns and properties in auth_schema
         for col, col_props in auth_schema.items():
             errors = {}
-            msg_vals = {"col": col}
+            msg_vals = {"col": col,
+                        'required': col_props['required']}
 
             # Flag potential issues initially by checking expected vs observed
             if col in observed_schema[observed_dataset].keys():
