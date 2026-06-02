@@ -1607,90 +1607,91 @@ def read_df_with_optimal_dtypes(
             pass
 
     return df
+    
 #---------------------------------------------------------------------------------- 
 
 def infer_data_types(series):
-	"""
-	Robustly infers the data type of a pandas or Spark Series.
+    """
+    Infers the data type of a pandas or Spark Series using robust null and datetime detection.
 
-	This function uses enhanced null and datetime detection logic
-	to determine the most appropriate data type for a given series.
-	It returns a canonical string representation of the inferred type.
+    This function analyzes a series to determine its most appropriate data type, returning a canonical string.
+    Enhanced null and datetime detection logic is used to improve reliability. Assumes input is a pandas.Series
+    or pyspark.pandas.Series. Returns one of "Null-Unknown", "Boolean", "Integer", "Float", "Datetime", "String", or "Other".
 
-	Parameters
-	----------
-	series : pandas.Series or pyspark.pandas.Series
-		The series/column to analyze.
+    Parameters
+    ----------
+    series : pandas.Series or pyspark.pandas.Series
+        Series or column to analyze.
 
-	Returns
-	-------
-	str
-		One of "Null-Unknown", "Boolean", "Integer", "Float",
-		"Datetime", "String", or "Other".
+    Returns
+    -------
+    str
+        Canonical string representing the inferred data type.
+    """
 
-	"""
+    # check for Spark pandas and convert if needed
+    is_spark_pandas = False
+    series_for_processing = series
 
-	# Check for Spark pandas and convert the series for processing
-	# if necessary. This check is simplified for this example.
-	is_spark_pandas = False
-	series_for_processing = series
+    # retrieve null values and patterns from config
+    null_types = set(getattr(Config, "NA_VALUES", []))
+    null_patterns = getattr(Config, "NA_PATTERNS", [])
 
-	# Use Config to get the sets of null values and regex patterns.
-	null_types = set(getattr(Config, "NA_VALUES", []))
-	null_patterns = getattr(Config, "NA_PATTERNS", [])
+    # mask for nulls using check_na_value helper
+    mask = series_for_processing.apply(
+        lambda x: check_na_value(
+            x,
+            na_values=null_types,
+            na_patterns=null_patterns
+        )
+    )
 
-    # Mask for nulls
-	mask = series_for_processing.apply(
-		lambda x: check_na_value(
-			x,
-			na_values=null_types,
-			na_patterns=null_patterns
-		)
-	)
+    # filter out null values for type inference
+    non_null_series = series_for_processing[~mask]
 
-	non_null_series = series_for_processing[~mask]
+    if non_null_series.count() == 0:
+        return "Null-Unknown"
 
-	if non_null_series.count() == 0:
-		return "Null-Unknown"
+    # attempt datetime detection, fallback to string if parsing fails
+    try:
+        if is_spark_pandas:
+            df_temp = series_for_processing.to_frame()
+        else:
+            df_temp = pd.DataFrame({series_for_processing.name: series_for_processing})
+        
+        result_series = infer_datetime_column(df_temp, series_for_processing.name)
+        result_dtype = str(result_series.dtype)
+        
+        if "datetime" in result_dtype or "date" in result_dtype:
+            valid_ratio = result_series.notnull().mean()
+            if valid_ratio > 0.7:
+                return "Datetime"
+    except Exception as e:
+        # pass if datetime parsing fails
+        pass
 
-	# Datetime detection logic. The series must be in a DataFrame
-	# for the infer_datetime_column helper function.
-	if is_spark_pandas:
-		df_temp = series_for_processing.to_frame()
-	else:
-		df_temp = pd.DataFrame({series_for_processing.name: series_for_processing})
-	
-	result_series = infer_datetime_column(df_temp, series_for_processing.name)
-	result_dtype = str(result_series.dtype)
-	if "datetime" in result_dtype or "date" in result_dtype:
-		valid_ratio = result_series.notnull().mean()
-		if valid_ratio > 0.7:
-			return "Datetime"
+    # check for boolean, integer, and float types
+    if pd.api.types.is_bool_dtype(non_null_series):
+        return "Boolean"
+    if pd.api.types.is_integer_dtype(non_null_series):
+        return "Integer"
+    if pd.api.types.is_float_dtype(non_null_series):
+        return "Float"
 
-	# Check for various data types and return the corresponding canonical string.
-	if pd.api.types.is_bool_dtype(non_null_series):
-		return "Boolean"
-	if pd.api.types.is_integer_dtype(non_null_series):
-		return "Integer"
-	if pd.api.types.is_float_dtype(non_null_series):
-		return "Float"
+    # handle object or string types, check for numeric conversion
+    if (
+        pd.api.types.is_object_dtype(non_null_series) or
+        pd.api.types.is_string_dtype(non_null_series)
+    ):
+        inferred_type = check_all_int(non_null_series)
+        if inferred_type == 'Int64':
+            return "Integer"
+        elif inferred_type == 'Float64':
+            return "Float"
+        else:
+            return "String"
 
-	# If the type is an object or string, use the check_all_int
-	# helper to determine if it can be a numeric type.
-	if (
-		pd.api.types.is_object_dtype(non_null_series) or
-		pd.api.types.is_string_dtype(non_null_series)
-	):
-		inferred_type = check_all_int(non_null_series)
-		if inferred_type == 'Int64':
-			return "Integer"
-		elif inferred_type == 'Float64':
-			return "Float"
-		else:
-			return "String"
-
-	return "Other"
-
+    return "Other"
 			
 #---------------------------------------------------------------------------------- 
 
