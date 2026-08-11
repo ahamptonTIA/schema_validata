@@ -7,6 +7,7 @@ import math                                 # Standard library for mathematical 
 import hashlib                              # Standard library for generating hash values
 import chardet                              # Library for character encoding detection
 import re                                   # Standard library for regular expressions
+import tempfile                         	# Library for creating temporary files and directories 
 import warnings                             # Standard library for issuing warning messages
 from datetime import datetime               # Standard library for working with dates and times
 from dateutil import parser as dt_parser    # Library for parsing dates from strings
